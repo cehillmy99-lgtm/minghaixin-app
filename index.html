@@ -16,12 +16,12 @@
 
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
   .animate-spin { animation: mhx-spin 0.8s linear infinite; }
   @keyframes mhx-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
 
-<!-- 錯誤偵測：攔截載入與執行錯誤 -->
+<!-- 錯誤偵測攔截器 -->
 <script>
   function mhxShowError(msg) {
     var box = document.getElementById('mhx-error-box');
@@ -42,44 +42,45 @@
   });
 </script>
 
-<!-- React / ReactDOM / Babel -->
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin onerror="mhxShowError('React 載入失敗: ' + this.src)"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin onerror="mhxShowError('ReactDOM 載入失敗: ' + this.src)"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin onerror="mhxShowError('Babel 載入失敗: ' + this.src)"></script>
+<!-- 使用高相容性的 React 與 Babel CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js" crossorigin></script>
 </head>
 <body>
 <div id="root"></div>
 <div id="mhx-error-box" style="display:none; position:fixed; top:0; left:0; right:0; background:#FEE2E2; color:#991B1B; padding:16px; font-size:13px; font-family:monospace; white-space:pre-wrap; z-index:99999; max-height:80vh; overflow:auto; border-bottom:3px solid #DC2626;"></div>
 
-<script type="text/babel" data-presets="react">
+<script type="text/babel">
 const { useState, useEffect, useMemo, useContext, createContext } = React;
 
 function makeIcon(glyph) {
-  return function Icon({ size = 16, color, className, style }) {
+  return function Icon(props) {
+    var size = props.size || 16;
+    var color = props.color || "currentColor";
+    var style = props.style || {};
     return (
-      <span className={className} style={{ fontSize: size, lineHeight: 1, color: color || "currentColor", display: "inline-block", ...style }}>
+      <span className={props.className} style={Object.assign({ fontSize: size, lineHeight: 1, color: color, display: "inline-block" }, style)}>
         {glyph}
       </span>
     );
   };
 }
 const Plus = makeIcon("+");
-const Trash2 = makeIcon("\u{1F5D1}");
-const ChevronDown = makeIcon("\u25BE");
-const ChevronRight = makeIcon("\u25B8");
-const TrendingUp = makeIcon("\u25B2");
-const TrendingDown = makeIcon("\u25BC");
-const AlertCircle = makeIcon("\u26A0");
-const CheckCircle2 = makeIcon("\u2714");
-const MinusCircle = makeIcon("\u2796");
-const Receipt = makeIcon("\u{1F9FE}");
-const FileText = makeIcon("\u{1F4C4}");
-const Save = makeIcon("\u{1F4BE}");
-const CheckCircle = makeIcon("\u2705");
-const XCircle = makeIcon("\u274C");
-function Loader2({ size = 16, color, className }) {
+const Trash2 = makeIcon("🗑");
+const ChevronDown = makeIcon("▾");
+const ChevronRight = makeIcon("▸");
+const TrendingUp = makeIcon("▲");
+const TrendingDown = makeIcon("▼");
+const Save = makeIcon("💾");
+const CheckCircle = makeIcon("✅");
+const XCircle = makeIcon("❌");
+
+function Loader2(props) {
+  var size = props.size || 16;
+  var color = props.color || "currentColor";
   return (
-    <span className={className} style={{ display: "inline-block", width: size, height: size, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", color: color || "currentColor" }} />
+    <span className={props.className} style={{ display: "inline-block", width: size, height: size, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", color: color }} />
   );
 }
 
@@ -109,27 +110,27 @@ const NAV = {
 const STORAGE_KEY = "mhx-data";
 
 const storage = {
-  get: async (key) => {
+  get: async function(key) {
     const v = localStorage.getItem(key);
     return v === null ? null : { value: v };
   },
-  set: async (key, value) => {
+  set: async function(key, value) {
     localStorage.setItem(key, value);
-    return { value };
+    return { value: value };
   },
 };
 const PURCHASE_ITEMS = ["Havaianas", "Ipanema", "Melissa", "其它"];
 const VENDORS = ["Site", "Nova Presto", "Marcelle", "Higienopolis", "Vou de Chinelo", "Oscar Freire", "Rei de Chinelus", "Havam Store", "Chinelos Moda", "其它"];
 const EXPENSE_ITEMS = ["國際運費", "稅金", "會計師", "其它"];
 
-const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-const fmt = (n) => (Number(n) || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 });
-const numOr0 = (v) => (isNaN(parseFloat(v)) ? 0 : parseFloat(v));
-const monthName = (m) => `${m} 月`;
+const uid = function() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); };
+const fmt = function(n) { return (Number(n) || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 }); };
+const numOr0 = function(v) { return isNaN(parseFloat(v)) ? 0 : parseFloat(v); };
+const monthName = function(m) { return m + " 月"; };
 
 function emptyTeam(year, month) {
   return {
-    id: uid(), year, month, name: "",
+    id: uid(), year: year, month: month, name: "",
     revenueEntries: [{ id: uid(), amount: "", taxIncluded: false }],
     customerShipping: "",
     purchases: [], remittances: [],
@@ -140,43 +141,43 @@ function emptyTeam(year, month) {
 /* ============================== 計算邏輯 ============================== */
 
 function teamMetrics(team) {
-  const revenueTotal = team.revenueEntries.reduce((s, r) => s + numOr0(r.amount), 0);
+  const revenueTotal = team.revenueEntries.reduce(function(s, r) { return s + numOr0(r.amount); }, 0);
   const shipping = numOr0(team.customerShipping);
-  const taxIncludedRevenue = team.revenueEntries.filter((r) => r.taxIncluded).reduce((s, r) => s + numOr0(r.amount), 0) + shipping;
-  const slipperQty = team.purchases.reduce((s, p) => s + numOr0(p.qty), 0);
-  const purchasesBRL = team.purchases.reduce((s, p) => s + numOr0(p.brl), 0);
+  const taxIncludedRevenue = team.revenueEntries.filter(function(r) { return r.taxIncluded; }).reduce(function(s, r) { return s + numOr0(r.amount); }, 0) + shipping;
+  const slipperQty = team.purchases.reduce(function(s, p) { return s + numOr0(p.qty); }, 0);
+  const purchasesBRL = team.purchases.reduce(function(s, p) { return s + numOr0(p.brl); }, 0);
 
-  const depositedBRL = team.remittances.reduce((s, r) => s + numOr0(r.brlOut), 0);
-  const depositedTWD = team.remittances.reduce((s, r) => s + numOr0(r.brlOut) * numOr0(r.rate), 0);
+  const depositedBRL = team.remittances.reduce(function(s, r) { return s + numOr0(r.brlOut); }, 0);
+  const depositedTWD = team.remittances.reduce(function(s, r) { return s + numOr0(r.brlOut) * numOr0(r.rate); }, 0);
   const avgRate = depositedBRL > 0 ? depositedTWD / depositedBRL : 0;
 
   const purchasesTWD = purchasesBRL * avgRate;
   const helperGross = slipperQty * 30;
-  const deductionsTotal = team.helperDeductions.reduce((s, d) => s + numOr0(d.amount), 0);
+  const deductionsTotal = team.helperDeductions.reduce(function(s, d) { return s + numOr0(d.amount); }, 0);
   const helperNet = helperGross - deductionsTotal;
 
   const currentBalanceBRL = depositedBRL - purchasesBRL;
   const currentBalanceTWD = currentBalanceBRL * avgRate;
 
   return {
-    revenueTotal, taxIncludedRevenue, slipperQty, purchasesBRL, purchasesTWD, helperGross, deductionsTotal, helperNet,
-    depositedBRL, depositedTWD, avgRate, currentBalanceBRL, currentBalanceTWD,
+    revenueTotal: revenueTotal, taxIncludedRevenue: taxIncludedRevenue, slipperQty: slipperQty, purchasesBRL: purchasesBRL, purchasesTWD: purchasesTWD, helperGross: helperGross, deductionsTotal: deductionsTotal, helperNet: helperNet,
+    depositedBRL: depositedBRL, depositedTWD: depositedTWD, avgRate: avgRate, currentBalanceBRL: currentBalanceBRL, currentBalanceTWD: currentBalanceTWD,
   };
 }
 
 function monthAggregate(teams, companyExpenses, year, month) {
-  const monthTeams = teams.filter((t) => t.year === year && t.month === month);
-  const monthExpenses = companyExpenses.filter((e) => e.year === year && e.month === month);
+  const monthTeams = teams.filter(function(t) { return t.year === year && t.month === month; });
+  const monthExpenses = companyExpenses.filter(function(e) { return e.year === year && e.month === month; });
 
   let revenueTotal = 0, taxIncludedRevenue = 0, purchasesTWD = 0, helperNetTotal = 0;
-  monthTeams.forEach((t) => {
+  monthTeams.forEach(function(t) {
     const m = teamMetrics(t);
     revenueTotal += m.revenueTotal;
     taxIncludedRevenue += m.taxIncludedRevenue;
     purchasesTWD += m.purchasesTWD;
     helperNetTotal += m.helperNet;
   });
-  const companyExpenseTotal = monthExpenses.reduce((s, e) => s + numOr0(e.amount), 0);
+  const companyExpenseTotal = monthExpenses.reduce(function(s, e) { return s + numOr0(e.amount); }, 0);
   const totalExpense = companyExpenseTotal + purchasesTWD + helperNetTotal;
   const netProfit = revenueTotal - totalExpense;
   const taxAmount = taxIncludedRevenue * 0.05;
@@ -187,7 +188,7 @@ function monthAggregate(teams, companyExpenses, year, month) {
   if (combinedRatio > 0.8) status = "欠佳";
   else if (combinedRatio > 0.6) status = "尚可";
 
-  return { monthTeams, monthExpenses, revenueTotal, taxIncludedRevenue, purchasesTWD, helperNetTotal, companyExpenseTotal, totalExpense, netProfit, taxAmount, purchaseRatio, companyExpenseRatio, status };
+  return { monthTeams: monthTeams, monthExpenses: monthExpenses, revenueTotal: revenueTotal, taxIncludedRevenue: taxIncludedRevenue, purchasesTWD: purchasesTWD, helperNetTotal: helperNetTotal, companyExpenseTotal: companyExpenseTotal, totalExpense: totalExpense, netProfit: netProfit, taxAmount: taxAmount, purchaseRatio: purchaseRatio, companyExpenseRatio: companyExpenseRatio, status: status };
 }
 
 /* ============================== 共用 UI 元件 ============================== */
@@ -204,7 +205,7 @@ function Btn({ children, onClick, variant = "primary", size = "md", disabled }) 
     ghost: { background: "transparent", color: C.muted, border: "1px solid transparent" },
     danger: { background: "transparent", color: C.bad, border: `1px solid ${C.bad}` },
   };
-  return <button type="button" disabled={disabled} onClick={onClick} style={{ ...base, ...variants[variant] }}>{children}</button>;
+  return <button type="button" disabled={disabled} onClick={onClick} style={Object.assign({}, base, variants[variant])}>{children}</button>;
 }
 
 function Field({ label, children }) {
@@ -217,11 +218,11 @@ function Field({ label, children }) {
 }
 
 const inputStyle = { border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 8px", color: C.text, background: "#FFFFFF", fontSize: 14, outline: "none" };
-function Input(props) { return <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
-function Select(props) { return <select {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
+function Input(props) { return <input {...props} style={Object.assign({}, inputStyle, props.style || {})} />; }
+function Select(props) { return <select {...props} style={Object.assign({}, inputStyle, props.style || {})} />; }
 
 function Card({ children, style }) {
-  return <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(17,24,39,0.06)", ...style }}>{children}</div>;
+  return <div style={Object.assign({ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(17,24,39,0.06)" }, style)}>{children}</div>;
 }
 
 function SectionTitle({ icon, children }) {
@@ -237,32 +238,32 @@ function Table({ headers, children }) {
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
-          <tr>{headers.map((h, i) => <th key={i} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>)}</tr>
+          <tr>{headers.map(function(h, i) { return <th key={i} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>; })}</tr>
         </thead>
         <tbody>{children}</tbody>
       </table>
     </div>
   );
 }
-function Td({ children, style, colSpan }) { return <td colSpan={colSpan} style={{ padding: "6px 8px", borderBottom: `1px solid ${C.border}`, color: C.text, ...style }}>{children}</td>; }
+function Td({ children, style, colSpan }) { return <td colSpan={colSpan} style={Object.assign({ padding: "6px 8px", borderBottom: `1px solid ${C.border}`, color: C.text }, style)}>{children}</td>; }
 
 function YearMonthPicker({ year, month, onYear, onMonth, years }) {
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <Select value={year} onChange={(e) => onYear(Number(e.target.value))}>
-        {years.map((y) => <option key={y} value={y}>{y} 年</option>)}
+      <Select value={year} onChange={function(e) { onYear(Number(e.target.value)); }}>
+        {years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}
       </Select>
-      <Select value={month} onChange={(e) => onMonth(Number(e.target.value))}>
-        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
+      <Select value={month} onChange={function(e) { onMonth(Number(e.target.value)); }}>
+        {Array.from({ length: 12 }, function(_, i) { return i + 1; }).map(function(m) { return <option key={m} value={m}>{monthName(m)}</option>; })}
       </Select>
     </div>
   );
 }
 
 function TeamSelector({ teams, year, month, selectedId, onSelect, onCreate }) {
-  const monthTeams = teams.filter((t) => t.year === year && t.month === month);
-  useEffect(() => {
-    if (monthTeams.length && !monthTeams.find((t) => t.id === selectedId)) {
+  const monthTeams = teams.filter(function(t) { return t.year === year && t.month === month; });
+  useEffect(function() {
+    if (monthTeams.length && !monthTeams.find(function(t) { return t.id === selectedId; })) {
       onSelect(monthTeams[0].id);
     }
   }, [year, month, teams.length]);
@@ -278,8 +279,8 @@ function TeamSelector({ teams, year, month, selectedId, onSelect, onCreate }) {
 
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-      <Select value={selectedId || ""} onChange={(e) => onSelect(e.target.value)}>
-        {monthTeams.map((t) => <option key={t.id} value={t.id}>{t.name || "（未命名團）"}</option>)}
+      <Select value={selectedId || ""} onChange={function(e) { onSelect(e.target.value); }}>
+        {monthTeams.map(function(t) { return <option key={t.id} value={t.id}>{t.name || "（未命名團）"}</option>; })}
       </Select>
       <Btn variant="outline" size="sm" onClick={onCreate}><Plus size={14} /> 新增一團</Btn>
     </div>
@@ -322,9 +323,9 @@ function OverviewDashboard({ teams, expenses, years, onGoToTeams }) {
       <Card>
         <SectionTitle>本月各團概況</SectionTitle>
         <Table headers={["團名", "營業額"]}>
-          {agg.monthTeams.map((t) => (
-            <tr key={t.id}><Td>{t.name || "（未命名團）"}</Td><Td>NT$ {fmt(teamMetrics(t).revenueTotal)}</Td></tr>
-          ))}
+          {agg.monthTeams.map(function(t) {
+            return <tr key={t.id}><Td>{t.name || "（未命名團）"}</Td><Td>NT$ {fmt(teamMetrics(t).revenueTotal)}</Td></tr>;
+          })}
           {agg.monthTeams.length === 0 && <tr><Td colSpan={2}>本月尚無紀錄</Td></tr>}
         </Table>
         <div style={{ marginTop: 12 }}>
@@ -341,12 +342,12 @@ function TeamsTab({ teams, setTeams, years }) {
   const now = new Date();
   const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const filtered = teams.filter((t) => t.year === year && t.month === month);
-  const monthTotal = filtered.reduce((s, t) => s + teamMetrics(t).revenueTotal, 0);
+  const filtered = teams.filter(function(t) { return t.year === year && t.month === month; });
+  const monthTotal = filtered.reduce(function(s, t) { return s + teamMetrics(t).revenueTotal; }, 0);
 
-  const addTeam = () => setTeams([...teams, emptyTeam(year, month)]);
-  const updateTeam = (t) => setTeams(teams.map((x) => (x.id === t.id ? t : x)));
-  const deleteTeam = (id) => setTeams(teams.filter((x) => x.id !== id));
+  const addTeam = function() { setTeams(teams.concat([emptyTeam(year, month)])); };
+  const updateTeam = function(t) { setTeams(teams.map(function(x) { return x.id === t.id ? t : x; })); };
+  const deleteTeam = function(id) { setTeams(teams.filter(function(x) { return x.id !== id; })); };
 
   return (
     <div>
@@ -358,10 +359,10 @@ function TeamsTab({ teams, setTeams, years }) {
         {year} 年 {month} 月　共 {filtered.length} 團　營業額合計 NT$ {fmt(monthTotal)}
       </div>
       {filtered.length === 0 && <Card><span style={{ color: C.muted }}>本月尚無紀錄，點擊「新增一團」開始輸入。</span></Card>}
-      {filtered.map((t) => (
-        <TeamRevenueCard key={t.id} team={t} onChange={updateTeam} onDelete={deleteTeam} />
-      ))}
-      <SaveToCloudButton sheetName="團紀錄" getPayload={() => filtered} />
+      {filtered.map(function(t) {
+        return <TeamRevenueCard key={t.id} team={t} onChange={updateTeam} onDelete={deleteTeam} />;
+      })}
+      <SaveToCloudButton sheetName="團紀錄" getPayload={function() { return filtered; }} />
     </div>
   );
 }
@@ -369,39 +370,41 @@ function TeamsTab({ teams, setTeams, years }) {
 function TeamRevenueCard({ team, onChange, onDelete }) {
   const [open, setOpen] = useState(true);
   const m = teamMetrics(team);
-  const update = (patch) => onChange({ ...team, ...patch });
-  const addRevenue = () => update({ revenueEntries: [...team.revenueEntries, { id: uid(), amount: "", taxIncluded: false }] });
-  const updRevenue = (id, patch) => update({ revenueEntries: team.revenueEntries.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
-  const delRevenue = (id) => update({ revenueEntries: team.revenueEntries.filter((r) => r.id !== id) });
+  const update = function(patch) { onChange(Object.assign({}, team, patch)); };
+  const addRevenue = function() { update({ revenueEntries: team.revenueEntries.concat([{ id: uid(), amount: "", taxIncluded: false }]) }); };
+  const updRevenue = function(id, patch) { update({ revenueEntries: team.revenueEntries.map(function(r) { return r.id === id ? Object.assign({}, r, patch) : r; }) }); };
+  const delRevenue = function(id) { update({ revenueEntries: team.revenueEntries.filter(function(r) { return r.id !== id; }) }); };
 
   return (
     <Card style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setOpen(!open)}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={function() { setOpen(!open); }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {open ? <ChevronDown size={18} color={C.text} /> : <ChevronRight size={18} color={C.text} />}
           <strong style={{ color: C.text, fontSize: 15 }}>{team.name || "（未命名團）"}</strong>
         </div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span style={{ fontSize: 13, color: C.text }}>NT$ {fmt(m.revenueTotal)}</span>
-          <Btn variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(team.id); }}><Trash2 size={14} /> 刪除</Btn>
+          <Btn variant="danger" size="sm" onClick={function(e) { e.stopPropagation(); onDelete(team.id); }}><Trash2 size={14} /> 刪除</Btn>
         </div>
       </div>
       {open && (
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Field label="團名/備註"><Input value={team.name} onChange={(e) => update({ name: e.target.value })} placeholder="例：7月第1團" /></Field>
+            <Field label="團名/備註"><Input value={team.name} onChange={function(e) { update({ name: e.target.value }); }} placeholder="例：7月第1團" /></Field>
           </div>
           <Table headers={["金額", "含稅？", ""]}>
-            {team.revenueEntries.map((r) => (
-              <tr key={r.id}>
-                <Td><Input type="number" value={r.amount} onChange={(e) => updRevenue(r.id, { amount: e.target.value })} placeholder="0" style={{ width: 140 }} /></Td>
-                <Td><label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={r.taxIncluded} onChange={(e) => updRevenue(r.id, { taxIncluded: e.target.checked })} /> 含稅</label></Td>
-                <Td><Btn variant="ghost" size="sm" onClick={() => delRevenue(r.id)}><Trash2 size={14} /></Btn></Td>
-              </tr>
-            ))}
+            {team.revenueEntries.map(function(r) {
+              return (
+                <tr key={r.id}>
+                  <Td><Input type="number" value={r.amount} onChange={function(e) { updRevenue(r.id, { amount: e.target.value }); }} placeholder="0" style={{ width: 140 }} /></Td>
+                  <Td><label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={r.taxIncluded} onChange={function(e) { updRevenue(r.id, { taxIncluded: e.target.checked }); }} /> 含稅</label></Td>
+                  <Td><Btn variant="ghost" size="sm" onClick={function() { delRevenue(r.id); }}><Trash2 size={14} /></Btn></Td>
+                </tr>
+              );
+            })}
           </Table>
           <Btn variant="outline" size="sm" onClick={addRevenue}><Plus size={14} /> 新增一筆營業額</Btn>
-          <Field label="客人總運費（固定含稅）"><Input type="number" value={team.customerShipping} onChange={(e) => update({ customerShipping: e.target.value })} placeholder="0" style={{ width: 180 }} /></Field>
+          <Field label="客人總運費（固定含稅）"><Input type="number" value={team.customerShipping} onChange={function(e) { update({ customerShipping: e.target.value }); }} placeholder="0" style={{ width: 180 }} /></Field>
           <div style={{ fontSize: 13, color: C.text }}>
             營業額合計：<strong>NT$ {fmt(m.revenueTotal)}</strong>（含稅總額：NT$ {fmt(m.taxIncludedRevenue)}，含運費）
           </div>
@@ -419,11 +422,11 @@ function BrazilTab({ teams, setTeams, years }) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedId, setSelectedId] = useState(null);
 
-  const team = teams.find((t) => t.id === selectedId);
-  const updateTeam = (patch) => setTeams(teams.map((t) => (t.id === team.id ? { ...t, ...patch } : t)));
-  const createTeam = () => {
+  const team = teams.find(function(t) { return t.id === selectedId; });
+  const updateTeam = function(patch) { setTeams(teams.map(function(t) { return t.id === team.id ? Object.assign({}, t, patch) : t; })); };
+  const createTeam = function() {
     const nt = emptyTeam(year, month);
-    setTeams([...teams, nt]);
+    setTeams(teams.concat([nt]));
     setSelectedId(nt.id);
   };
 
@@ -437,12 +440,12 @@ function BrazilTab({ teams, setTeams, years }) {
   }
 
   const m = teamMetrics(team);
-  const addPurchase = () => updateTeam({ purchases: [...team.purchases, { id: uid(), item: "Havaianas", vendor: "Site", customVendor: "", qty: "", brl: "" }] });
-  const updPurchase = (id, patch) => updateTeam({ purchases: team.purchases.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
-  const delPurchase = (id) => updateTeam({ purchases: team.purchases.filter((p) => p.id !== id) });
-  const addRemit = () => updateTeam({ remittances: [...team.remittances, { id: uid(), date: "", brlOut: "", rate: "" }] });
-  const updRemit = (id, patch) => updateTeam({ remittances: team.remittances.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
-  const delRemit = (id) => updateTeam({ remittances: team.remittances.filter((r) => r.id !== id) });
+  const addPurchase = function() { updateTeam({ purchases: team.purchases.concat([{ id: uid(), item: "Havaianas", vendor: "Site", customVendor: "", qty: "", brl: "" }]) }); };
+  const updPurchase = function(id, patch) { updateTeam({ purchases: team.purchases.map(function(p) { return p.id === id ? Object.assign({}, p, patch) : p; }) }); };
+  const delPurchase = function(id) { updateTeam({ purchases: team.purchases.filter(function(p) { return p.id !== id; }) }); };
+  const addRemit = function() { updateTeam({ remittances: team.remittances.concat([{ id: uid(), date: "", brlOut: "", rate: "" }]) }); };
+  const updRemit = function(id, patch) { updateTeam({ remittances: team.remittances.map(function(r) { return r.id === id ? Object.assign({}, r, patch) : r; }) }); };
+  const delRemit = function(id) { updateTeam({ remittances: team.remittances.filter(function(r) { return r.id !== id; }) }); };
 
   const cardStyle = { marginBottom: 10, padding: 12 };
   const titleStyle = { fontSize: 14, marginBottom: 8 };
@@ -456,18 +459,20 @@ function BrazilTab({ teams, setTeams, years }) {
 
       <Card style={cardStyle}>
         <SectionTitle><span style={titleStyle}>巴幣儲值</span></SectionTitle>
-        {team.remittances.map((r) => (
-          <div key={r.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, marginBottom: 8 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-              <Input type="date" value={r.date} onChange={(e) => updRemit(r.id, { date: e.target.value })} style={{ fontSize: 12, padding: "5px 6px", flex: 1, minWidth: 0 }} />
-              <Btn variant="ghost" size="sm" onClick={() => delRemit(r.id)}><Trash2 size={14} /></Btn>
+        {team.remittances.map(function(r) {
+          return (
+            <div key={r.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                <Input type="date" value={r.date} onChange={function(e) { updRemit(r.id, { date: e.target.value }); }} style={{ fontSize: 12, padding: "5px 6px", flex: 1, minWidth: 0 }} />
+                <Btn variant="ghost" size="sm" onClick={function() { delRemit(r.id); }}><Trash2 size={14} /></Btn>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Input type="number" value={r.brlOut} onChange={function(e) { updRemit(r.id, { brlOut: e.target.value }); }} placeholder="巴幣金額" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
+                <Input type="number" step="0.01" value={r.rate} onChange={function(e) { updRemit(r.id, { rate: e.target.value }); }} placeholder="當團匯率" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <Input type="number" value={r.brlOut} onChange={(e) => updRemit(r.id, { brlOut: e.target.value })} placeholder="巴幣金額" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
-              <Input type="number" step="0.01" value={r.rate} onChange={(e) => updRemit(r.id, { rate: e.target.value })} placeholder="當團匯率" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
         <Btn variant="outline" size="sm" onClick={addRemit}><Plus size={14} /> 新增儲值</Btn>
         <div style={{ marginTop: 8, fontSize: 13, color: C.text, display: "flex", gap: 16, flexWrap: "wrap" }}>
           <span>當前巴幣餘額：<strong>R$ {fmt(m.currentBalanceBRL)}</strong></span>
@@ -481,38 +486,40 @@ function BrazilTab({ teams, setTeams, years }) {
           <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr>
-                {["品項", "廠商", "數量", "巴幣金額", ""].map((h, i) => (
-                  <th key={i} style={{ textAlign: "left", padding: "4px 6px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>
-                ))}
+                {["品項", "廠商", "數量", "巴幣金額", ""].map(function(h, i) {
+                  return <th key={i} style={{ textAlign: "left", padding: "4px 6px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>;
+                })}
               </tr>
             </thead>
             <tbody>
-              {team.purchases.map((p) => (
-                <tr key={p.id}>
-                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                    <Select value={p.item} onChange={(e) => updPurchase(p.id, { item: e.target.value })} style={{ fontSize: 12, padding: "5px 4px", width: 100 }}>
-                      {PURCHASE_ITEMS.map((it) => <option key={it} value={it}>{it}</option>)}
-                    </Select>
-                  </td>
-                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                    <Select value={p.vendor} onChange={(e) => updPurchase(p.id, { vendor: e.target.value })} style={{ fontSize: 12, padding: "5px 4px", width: 120 }}>
-                      {VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
-                    </Select>
-                    {p.vendor === "其它" && (
-                      <Input value={p.customVendor} onChange={(e) => updPurchase(p.id, { customVendor: e.target.value })} placeholder="自填廠商" style={{ fontSize: 12, padding: "5px 4px", marginTop: 4, width: 120 }} />
-                    )}
-                  </td>
-                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                    <Input type="number" value={p.qty} onChange={(e) => updPurchase(p.id, { qty: e.target.value })} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 55 }} />
-                  </td>
-                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                    <Input type="number" value={p.brl} onChange={(e) => updPurchase(p.id, { brl: e.target.value })} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 80 }} />
-                  </td>
-                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                    <Btn variant="ghost" size="sm" onClick={() => delPurchase(p.id)}><Trash2 size={14} /></Btn>
-                  </td>
-                </tr>
-              ))}
+              {team.purchases.map(function(p) {
+                return (
+                  <tr key={p.id}>
+                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                      <Select value={p.item} onChange={function(e) { updPurchase(p.id, { item: e.target.value }); }} style={{ fontSize: 12, padding: "5px 4px", width: 100 }}>
+                        {PURCHASE_ITEMS.map(function(it) { return <option key={it} value={it}>{it}</option>; })}
+                      </Select>
+                    </td>
+                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                      <Select value={p.vendor} onChange={function(e) { updPurchase(p.id, { vendor: e.target.value }); }} style={{ fontSize: 12, padding: "5px 4px", width: 120 }}>
+                        {VENDORS.map(function(v) { return <option key={v} value={v}>{v}</option>; })}
+                      </Select>
+                      {p.vendor === "其它" && (
+                        <Input value={p.customVendor} onChange={function(e) { updPurchase(p.id, { customVendor: e.target.value }); }} placeholder="自填廠商" style={{ fontSize: 12, padding: "5px 4px", marginTop: 4, width: 120 }} />
+                      )}
+                    </td>
+                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                      <Input type="number" value={p.qty} onChange={function(e) { updPurchase(p.id, { qty: e.target.value }); }} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 55 }} />
+                    </td>
+                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                      <Input type="number" value={p.brl} onChange={function(e) { updPurchase(p.id, { brl: e.target.value }); }} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 80 }} />
+                    </td>
+                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                      <Btn variant="ghost" size="sm" onClick={function() { delPurchase(p.id); }}><Trash2 size={14} /></Btn>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -522,7 +529,7 @@ function BrazilTab({ teams, setTeams, years }) {
         </div>
         <div style={{ marginTop: 4, fontSize: 11, color: C.muted }}>換算採用巴幣儲值加權平均匯率：{fmt(m.avgRate)}</div>
       </Card>
-      <SaveToCloudButton sheetName="巴西進貨" getPayload={() => ({ teamId: team.id, teamName: team.name, remittances: team.remittances, purchases: team.purchases })} />
+      <SaveToCloudButton sheetName="巴西進貨" getPayload={function() { return { teamId: team.id, teamName: team.name, remittances: team.remittances, purchases: team.purchases }; }} />
     </div>
   );
 }
@@ -535,11 +542,11 @@ function StaffTab({ teams, setTeams, years }) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedId, setSelectedId] = useState(null);
 
-  const team = teams.find((t) => t.id === selectedId);
-  const updateTeam = (patch) => setTeams(teams.map((t) => (t.id === team.id ? { ...t, ...patch } : t)));
-  const createTeam = () => {
+  const team = teams.find(function(t) { return t.id === selectedId; });
+  const updateTeam = function(patch) { setTeams(teams.map(function(t) { return t.id === team.id ? Object.assign({}, t, patch) : t; })); };
+  const createTeam = function() {
     const nt = emptyTeam(year, month);
-    setTeams([...teams, nt]);
+    setTeams(teams.concat([nt]));
     setSelectedId(nt.id);
   };
 
@@ -553,9 +560,9 @@ function StaffTab({ teams, setTeams, years }) {
   }
 
   const m = teamMetrics(team);
-  const addDeduction = () => updateTeam({ helperDeductions: [...team.helperDeductions, { id: uid(), name: "", amount: "" }] });
-  const updDeduction = (id, patch) => updateTeam({ helperDeductions: team.helperDeductions.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
-  const delDeduction = (id) => updateTeam({ helperDeductions: team.helperDeductions.filter((d) => d.id !== id) });
+  const addDeduction = function() { updateTeam({ helperDeductions: team.helperDeductions.concat([{ id: uid(), name: "", amount: "" }]) }); };
+  const updDeduction = function(id, patch) { updateTeam({ helperDeductions: team.helperDeductions.map(function(d) { return d.id === id ? Object.assign({}, d, patch) : d; }) }); };
+  const delDeduction = function(id) { updateTeam({ helperDeductions: team.helperDeductions.filter(function(d) { return d.id !== id; }) }); };
 
   return (
     <div>
@@ -564,23 +571,25 @@ function StaffTab({ teams, setTeams, years }) {
 
       <Card>
         <SectionTitle>小幫手人事支出</SectionTitle>
-        <Field label="小幫手姓名"><Input value={team.helperName} onChange={(e) => updateTeam({ helperName: e.target.value })} placeholder="姓名" style={{ width: 200 }} /></Field>
+        <Field label="小幫手姓名"><Input value={team.helperName} onChange={function(e) { updateTeam({ helperName: e.target.value }); }} placeholder="姓名" style={{ width: 200 }} /></Field>
         <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>薪資 = 拖鞋總數量 {fmt(m.slipperQty)} × 30 = <strong>NT$ {fmt(m.helperGross)}</strong></div>
         <div style={{ marginTop: 14 }}>
           <Table headers={["代購品名", "代購金額", ""]}>
-            {team.helperDeductions.map((d) => (
-              <tr key={d.id}>
-                <Td><Input value={d.name} onChange={(e) => updDeduction(d.id, { name: e.target.value })} placeholder="品名" style={{ width: 160 }} /></Td>
-                <Td><Input type="number" value={d.amount} onChange={(e) => updDeduction(d.id, { amount: e.target.value })} style={{ width: 110 }} /></Td>
-                <Td><Btn variant="ghost" size="sm" onClick={() => delDeduction(d.id)}><Trash2 size={14} /></Btn></Td>
-              </tr>
-            ))}
+            {team.helperDeductions.map(function(d) {
+              return (
+                <tr key={d.id}>
+                  <Td><Input value={d.name} onChange={function(e) { updDeduction(d.id, { name: e.target.value }); }} placeholder="品名" style={{ width: 160 }} /></Td>
+                  <Td><Input type="number" value={d.amount} onChange={function(e) { updDeduction(d.id, { amount: e.target.value }); }} style={{ width: 110 }} /></Td>
+                  <Td><Btn variant="ghost" size="sm" onClick={function() { delDeduction(d.id); }}><Trash2 size={14} /></Btn></Td>
+                </tr>
+              );
+            })}
           </Table>
           <div style={{ marginTop: 8 }}><Btn variant="outline" size="sm" onClick={addDeduction}><Plus size={14} /> 新增代購扣抵</Btn></div>
         </div>
         <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>代購扣抵合計：NT$ {fmt(m.deductionsTotal)}　剩餘應付薪資：<strong>NT$ {fmt(m.helperNet)}</strong></div>
       </Card>
-      <SaveToCloudButton sheetName="人事" getPayload={() => ({ teamId: team.id, teamName: team.name, helperName: team.helperName, helperDeductions: team.helperDeductions, helperGross: m.helperGross, helperNet: m.helperNet })} />
+      <SaveToCloudButton sheetName="人事" getPayload={function() { return { teamId: team.id, teamName: team.name, helperName: team.helperName, helperDeductions: team.helperDeductions, helperGross: m.helperGross, helperNet: m.helperNet }; }} />
     </div>
   );
 }
@@ -591,12 +600,12 @@ function ExpensesTab({ expenses, setExpenses, years }) {
   const now = new Date();
   const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const filtered = expenses.filter((e) => e.year === year && e.month === month);
-  const total = filtered.reduce((s, e) => s + numOr0(e.amount), 0);
+  const filtered = expenses.filter(function(e) { return e.year === year && e.month === month; });
+  const total = filtered.reduce(function(s, e) { return s + numOr0(e.amount); }, 0);
 
-  const add = () => setExpenses([...expenses, { id: uid(), year, month, item: "國際運費", customItem: "", amount: "" }]);
-  const upd = (id, patch) => setExpenses(expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  const del = (id) => setExpenses(expenses.filter((e) => e.id !== id));
+  const add = function() { setExpenses(expenses.concat([{ id: uid(), year: year, month: month, item: "國際運費", customItem: "", amount: "" }])); };
+  const upd = function(id, patch) { setExpenses(expenses.map(function(e) { return e.id === id ? Object.assign({}, e, patch) : e; })); };
+  const del = function(id) { setExpenses(expenses.filter(function(e) { return e.id !== id; })); };
 
   return (
     <div>
@@ -606,19 +615,21 @@ function ExpensesTab({ expenses, setExpenses, years }) {
       </div>
       <Card>
         <Table headers={["支出項目", "其它名稱", "金額", ""]}>
-          {filtered.map((e) => (
-            <tr key={e.id}>
-              <Td><Select value={e.item} onChange={(ev) => upd(e.id, { item: ev.target.value })}>{EXPENSE_ITEMS.map((it) => <option key={it} value={it}>{it}</option>)}</Select></Td>
-              <Td>{e.item === "其它" && <Input value={e.customItem} onChange={(ev) => upd(e.id, { customItem: ev.target.value })} placeholder="自填名稱" style={{ width: 140 }} />}</Td>
-              <Td><Input type="number" value={e.amount} onChange={(ev) => upd(e.id, { amount: ev.target.value })} style={{ width: 120 }} /></Td>
-              <Td><Btn variant="ghost" size="sm" onClick={() => del(e.id)}><Trash2 size={14} /></Btn></Td>
-            </tr>
-          ))}
+          {filtered.map(function(e) {
+            return (
+              <tr key={e.id}>
+                <Td><Select value={e.item} onChange={function(ev) { upd(e.id, { item: ev.target.value }); }}>{EXPENSE_ITEMS.map(function(it) { return <option key={it} value={it}>{it}</option>; })}</Select></Td>
+                <Td>{e.item === "其它" && <Input value={e.customItem} onChange={function(ev) { upd(e.id, { customItem: ev.target.value }); }} placeholder="自填名稱" style={{ width: 140 }} />}</Td>
+                <Td><Input type="number" value={e.amount} onChange={function(ev) { upd(e.id, { amount: ev.target.value }); }} style={{ width: 120 }} /></Td>
+                <Td><Btn variant="ghost" size="sm" onClick={function() { del(e.id); }}><Trash2 size={14} /></Btn></Td>
+              </tr>
+            );
+          })}
           {filtered.length === 0 && <tr><Td colSpan={4}>本月尚無支出紀錄</Td></tr>}
         </Table>
       </Card>
       <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: C.text }}>{year} 年 {month} 月支出合計：NT$ {fmt(total)}</div>
-      <SaveToCloudButton sheetName="公司支出" getPayload={() => filtered} />
+      <SaveToCloudButton sheetName="公司支出" getPayload={function() { return filtered; }} />
     </div>
   );
 }
@@ -631,7 +642,7 @@ function RatioBadge({ ratio }) {
   if (pct > 60) { status = "欠佳"; color = C.bad; symbol = "✗"; }
   else if (pct > 40) { status = "尚可"; color = C.ok; symbol = "!"; }
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, background: C.bg, border: `1px solid ${C.border}`, color, fontWeight: 700, fontSize: 12 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, background: C.bg, border: `1px solid ${C.border}`, color: color, fontWeight: 700, fontSize: 12 }}>
       {symbol} {status}
     </span>
   );
@@ -651,8 +662,8 @@ function RatioRow({ label, ratio }) {
           <span style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>{(ratio * 100).toFixed(1)}%</span>
         </div>
       </div>
-      <div style={{ width: "100%", height: 8, borderRadius: 999, background: `#EEF0F2` }}>
-        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: barColor, transition: "width .3s" }} />
+      <div style={{ width: "100%", height: 8, borderRadius: 999, background: "#EEF0F2" }}>
+        <div style={{ width: pct + "%", height: "100%", borderRadius: 999, background: barColor, transition: "width .3s" }} />
       </div>
     </div>
   );
@@ -674,13 +685,14 @@ function MonthlyTab({ teams, expenses, years }) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const agg = monthAggregate(teams, expenses, year, month);
 
-  const yearMonths = useMemo(() => {
+  const yearMonths = useMemo(function() {
     const set = new Set();
-    teams.forEach((t) => { if (t.year === year) set.add(t.month); });
-    return [...set];
+    teams.forEach(function(t) { if (t.year === year) set.add(t.month); });
+    return Array.from(set);
   }, [teams, year]);
-  const yearlyTotals = yearMonths.map((mo) => monthAggregate(teams, expenses, year, mo).revenueTotal);
-  const avgRevenue = yearlyTotals.length ? yearlyTotals.reduce((a, b) => a + b, 0) / yearlyTotals.length : 0;
+
+  const yearlyTotals = yearMonths.map(function(mo) { return monthAggregate(teams, expenses, year, mo).revenueTotal; });
+  const avgRevenue = yearlyTotals.length ? yearlyTotals.reduce(function(a, b) { return a + b; }, 0) / yearlyTotals.length : 0;
 
   return (
     <div>
@@ -697,10 +709,10 @@ function MonthlyTab({ teams, expenses, years }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 20 }}>
-        <StatCard label="月營業額" value={`$ ${fmt(agg.revenueTotal)}`} sub="含客人總運費" />
-        <StatCard label="月支出合計" value={`$ ${fmt(agg.totalExpense)}`} sub="貨款＋人事＋公司支出" tone={C.bad} />
-        <StatCard label="當月實賺金額" value={`${agg.netProfit >= 0 ? "+" : ""}${fmt(agg.netProfit)}`} sub="🎉 本月盈餘" tone={C.good} />
-        <StatCard label="平均每月營業額" value={`$ ${fmt(avgRevenue)}`} sub={`${year} 年已有紀錄月份平均`} />
+        <StatCard label="月營業額" value={"$ " + fmt(agg.revenueTotal)} sub="含客人總運費" />
+        <StatCard label="月支出合計" value={"$ " + fmt(agg.totalExpense)} sub="貨款＋人事＋公司支出" tone={C.bad} />
+        <StatCard label="當月實賺金額" value={(agg.netProfit >= 0 ? "+" : "") + fmt(agg.netProfit)} sub="🎉 本月盈餘" tone={C.good} />
+        <StatCard label="平均每月營業額" value={"$ " + fmt(avgRevenue)} sub={year + " 年已有紀錄月份平均"} />
       </div>
 
       <Card style={{ marginBottom: 20 }}>
@@ -731,11 +743,14 @@ function CompareTab({ teams, expenses, years }) {
   const [compareYear, setCompareYear] = useState(years[0] || now.getFullYear());
   const [compareMonth, setCompareMonth] = useState(now.getMonth() + 1);
 
-  const monthsData = Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => ({ month: monthName(mo), monthNum: mo, revenue: monthAggregate(teams, expenses, year, mo).revenueTotal }));
-  const withGrowth = monthsData.map((d, i) => {
+  const monthsData = Array.from({ length: 12 }, function(_, i) { return i + 1; }).map(function(mo) {
+    return { month: monthName(mo), monthNum: mo, revenue: monthAggregate(teams, expenses, year, mo).revenueTotal };
+  });
+
+  const withGrowth = monthsData.map(function(d, i) {
     const prev = i > 0 ? monthsData[i - 1].revenue : null;
     const growth = prev && prev > 0 ? ((d.revenue - prev) / prev) * 100 : null;
-    return { ...d, growth };
+    return Object.assign({}, d, { growth: growth });
   });
 
   const thisMonthAgg = monthAggregate(teams, expenses, year, compareMonth);
@@ -746,36 +761,44 @@ function CompareTab({ teams, expenses, years }) {
     <div>
       <Card style={{ marginBottom: 20 }}>
         <SectionTitle>{year} 年　1–12 月營運看板</SectionTitle>
-        <div style={{ marginBottom: 12 }}><Select value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y} 年</option>)}</Select></div>
+        <div style={{ marginBottom: 12 }}>
+          <Select value={year} onChange={function(e) { setYear(Number(e.target.value)); }}>
+            {years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}
+          </Select>
+        </div>
         <div style={{ width: "100%", height: 220, display: "flex", alignItems: "flex-end", gap: 6, borderBottom: `1px solid ${C.border}`, padding: "0 4px" }}>
-          {(() => {
-            const max = Math.max(1, ...withGrowth.map((d) => d.revenue));
-            return withGrowth.map((d) => (
-              <div key={d.monthNum} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ fontSize: 10, color: C.muted }}>{d.revenue > 0 ? fmt(d.revenue) : ""}</div>
-                <div style={{ width: "100%", height: Math.max(2, (d.revenue / max) * 170), background: C.text, borderRadius: "3px 3px 0 0" }} />
-                <div style={{ fontSize: 10, color: C.muted }}>{d.monthNum}月</div>
-              </div>
-            ));
-          })()}
+          {function() {
+            var max = Math.max.apply(Math, [1].concat(withGrowth.map(function(d) { return d.revenue; })));
+            return withGrowth.map(function(d) {
+              return (
+                <div key={d.monthNum} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <div style={{ fontSize: 10, color: C.muted }}>{d.revenue > 0 ? fmt(d.revenue) : ""}</div>
+                  <div style={{ width: "100%", height: Math.max(2, (d.revenue / max) * 170), background: C.text, borderRadius: "3px 3px 0 0" }} />
+                  <div style={{ fontSize: 10, color: C.muted }}>{d.monthNum}月</div>
+                </div>
+              );
+            });
+          }()}
         </div>
         <Table headers={["月份", "營業額", "與上月成長率"]}>
-          {withGrowth.map((d) => (
-            <tr key={d.monthNum}>
-              <Td>{d.month}</Td><Td>NT$ {fmt(d.revenue)}</Td>
-              <Td>{d.growth === null ? "—" : <span style={{ color: d.growth >= 0 ? C.good : C.bad, display: "inline-flex", alignItems: "center", gap: 4 }}>{d.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{d.growth.toFixed(1)}%</span>}</Td>
-            </tr>
-          ))}
+          {withGrowth.map(function(d) {
+            return (
+              <tr key={d.monthNum}>
+                <Td>{d.month}</Td><Td>NT$ {fmt(d.revenue)}</Td>
+                <Td>{d.growth === null ? "—" : <span style={{ color: d.growth >= 0 ? C.good : C.bad, display: "inline-flex", alignItems: "center", gap: 4 }}>{d.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{d.growth.toFixed(1)}%</span>}</Td>
+              </tr>
+            );
+          })}
         </Table>
       </Card>
       <Card>
         <SectionTitle>年度同月比較</SectionTitle>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-          <Field label="本期年份"><Select value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y} 年</option>)}</Select></Field>
-          <Field label="比較年份"><Select value={compareYear} onChange={(e) => setCompareYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y} 年</option>)}</Select></Field>
-          <Field label="比較月份"><Select value={compareMonth} onChange={(e) => setCompareMonth(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => <option key={mo} value={mo}>{monthName(mo)}</option>)}</Select></Field>
+          <Field label="本期年份"><Select value={year} onChange={function(e) { setYear(Number(e.target.value)); }}>{years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}</Select></Field>
+          <Field label="比較年份"><Select value={compareYear} onChange={function(e) { setCompareYear(Number(e.target.value)); }}>{years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}</Select></Field>
+          <Field label="比較月份"><Select value={compareMonth} onChange={function(e) { setCompareMonth(Number(e.target.value)); }}>{Array.from({ length: 12 }, function(_, i) { return i + 1; }).map(function(mo) { return <option key={mo} value={mo}>{monthName(mo)}</option>; })}</Select></Field>
         </div>
-        <Table headers={["", `${year}/${compareMonth}`, `${compareYear}/${compareMonth}`]}>
+        <Table headers={["", year + "/" + compareMonth, compareYear + "/" + compareMonth]}>
           <tr><Td>營業額</Td><Td>NT$ {fmt(thisMonthAgg.revenueTotal)}</Td><Td>NT$ {fmt(otherMonthAgg.revenueTotal)}</Td></tr>
           <tr><Td>淨利</Td><Td>NT$ {fmt(thisMonthAgg.netProfit)}</Td><Td>NT$ {fmt(otherMonthAgg.netProfit)}</Td></tr>
         </Table>
@@ -791,12 +814,12 @@ const ToastContext = createContext(null);
 
 function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
+  const showToast = function(type, message) {
+    setToast({ type: type, message: message });
+    setTimeout(function() { setToast(null); }, 3500);
   };
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast: showToast }}>
       {children}
       {toast && (
         <div style={{
@@ -819,9 +842,9 @@ function SaveToCloudButton({ sheetName, getPayload }) {
   const { showToast } = useContext(ToastContext);
   const [status, setStatus] = useState("idle");
 
-  const handleSave = async () => {
+  const handleSave = async function() {
     if (status === "saving") return;
-    if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("YOUR_GAS_WEB_APP_URL")) {
+    if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.indexOf("YOUR_GAS_WEB_APP_URL") !== -1) {
       showToast("error", "請先設定正確的 GAS 部署網址！");
       return;
     }
@@ -877,15 +900,15 @@ function Navbar({ tab, setTab }) {
       className="mhx-nav"
       style={{
         display: "flex", gap: 2, padding: "0 12px", background: NAV.bg,
-        overflowX: "auto", whiteSpace: "nowrap", scrollbarWidth: "none",
+        overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch",
       }}
     >
-      {TABS.map((t) => {
+      {TABS.map(function(t) {
         const active = tab === t.key;
         return (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={function() { setTab(t.key); }}
             className="mhx-nav-btn"
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
@@ -899,10 +922,6 @@ function Navbar({ tab, setTab }) {
           </button>
         );
       })}
-      <style>{`
-        .mhx-nav::-webkit-scrollbar { display: none; }
-        .mhx-nav-btn:hover { color: ${NAV.active} !important; border-bottom-color: ${NAV.active}66 !important; }
-      `}</style>
     </nav>
   );
 }
@@ -916,8 +935,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState(false);
 
-  useEffect(() => {
-    (async () => {
+  useEffect(function() {
+    (async function() {
       try {
         const res = await storage.get(STORAGE_KEY);
         if (res && res.value) {
@@ -932,11 +951,11 @@ function App() {
     })();
   }, []);
 
-  useEffect(() => {
+  useEffect(function() {
     if (loading) return;
-    (async () => {
+    (async function() {
       try {
-        const result = await storage.set(STORAGE_KEY, JSON.stringify({ teams, companyExpenses: expenses }));
+        const result = await storage.set(STORAGE_KEY, JSON.stringify({ teams: teams, companyExpenses: expenses }));
         setSaveError(!result);
       } catch (e) {
         setSaveError(true);
@@ -944,12 +963,12 @@ function App() {
     })();
   }, [teams, expenses, loading]);
 
-  const years = useMemo(() => {
+  const years = useMemo(function() {
     const now = new Date().getFullYear();
     const set = new Set([now]);
-    teams.forEach((t) => set.add(t.year));
-    expenses.forEach((e) => set.add(e.year));
-    return [...set].sort((a, b) => a - b);
+    teams.forEach(function(t) { set.add(t.year); });
+    expenses.forEach(function(e) { set.add(e.year); });
+    return Array.from(set).sort(function(a, b) { return a - b; });
   }, [teams, expenses]);
 
   if (loading) {
@@ -962,7 +981,7 @@ function App() {
 
   return (
     <ToastProvider>
-      <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans TC', 'PingFang TC', system-ui, sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: C.bg }}>
         <header style={{ padding: "16px 24px", background: NAV.bg }}>
           <h1 style={{ color: C.text, fontSize: 20, fontWeight: 900, margin: 0 }}>銘海鑫商行｜公司管理系統</h1>
           <p style={{ color: C.muted, fontSize: 12, margin: "4px 0 0 0" }}>
@@ -972,8 +991,8 @@ function App() {
 
         <Navbar tab={tab} setTab={setTab} />
 
-        <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-          {tab === "overview" && <OverviewDashboard teams={teams} expenses={expenses} years={years} onGoToTeams={() => setTab("teams")} />}
+        <main style={{ padding: "16px 12px", maxWidth: 1100, margin: "0 auto" }}>
+          {tab === "overview" && <OverviewDashboard teams={teams} expenses={expenses} years={years} onGoToTeams={function() { setTab("teams"); }} />}
           {tab === "teams" && <TeamsTab teams={teams} setTeams={setTeams} years={years} />}
           {tab === "brazil" && <BrazilTab teams={teams} setTeams={setTeams} years={years} />}
           {tab === "staff" && <StaffTab teams={teams} setTeams={setTeams} years={years} />}
