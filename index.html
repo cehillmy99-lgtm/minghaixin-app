@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>銘海鑫商行｜公司管理系統</title>
+<title>銘海鑫商行｜Operating System</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
@@ -19,6 +19,15 @@
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
   .animate-spin { animation: mhx-spin 0.8s linear infinite; }
   @keyframes mhx-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  
+  /* 手機頂部安全區相容性修正 */
+  .app-header {
+    padding-top: max(44px, env(safe-area-inset-top, 44px));
+    padding-bottom: 16px;
+    padding-left: 20px;
+    padding-right: 20px;
+    background: #E5E7EB;
+  }
 </style>
 
 <!-- 錯誤偵測攔截器 -->
@@ -86,7 +95,6 @@ function Loader2(props) {
 
 /* ============================== 常數與樣式 ============================== */
 
-// ⚠️ 請把引號內的內容替換成你在 GAS 按「部署」後獲得的完整網址
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec";
 
 const C = {
@@ -982,7 +990,7 @@ function App() {
   return (
     <ToastProvider>
       <div style={{ minHeight: "100vh", background: C.bg }}>
-        <header style={{ padding: "20px 24px 16px 24px", background: NAV.bg }}>
+        <header className="app-header">
           <h1 style={{
             fontSize: 22,
             fontWeight: 800,
@@ -996,7 +1004,7 @@ function App() {
             alignItems: "center",
             gap: "8px"
           }}>
-            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ 公司管理系統</span>
+            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ Operating System</span>
           </h1>
           <p style={{ color: C.muted, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px" }}>
             {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端儲存"}
