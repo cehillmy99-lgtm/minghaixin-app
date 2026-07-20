@@ -6,181 +6,127 @@
   <title>銘海鑫商行 | 公司管理系統</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & ReactDOM -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-  <div id="root"></div>
+<body class="bg-gray-100 font-sans text-gray-800">
 
-  <script type="text/babel">
-    // ⚠️ 請在這裡替換成你部署好的 GAS Web App 網址 ⚠️
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec";
+  <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg relative pb-20">
+    <!-- 頂部標題 -->
+    <header class="p-4 border-b text-center bg-white sticky top-0 z-10">
+      <h1 class="text-lg font-bold">銘海鑫商行 | 公司管理系統</h1>
+    </header>
 
-    function App() {
-      const [currentTab, setCurrentTab] = React.useState('overview');
-      const [year, setYear] = React.useState('2026');
-      const [month, setMonth] = React.useState('7');
-      const [isSaving, setIsSaving] = React.useState(false);
-      const [toast, setToast] = React.useState(null);
+    <!-- Toast 提示訊息 -->
+    <div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-md text-sm font-medium transition-all"></div>
 
-      const showToast = (msg, type = 'success') => {
-        setToast({ msg, type });
-        setTimeout(() => setToast(null), 3000);
-      };
+    <!-- 分頁導覽按鈕 -->
+    <nav class="flex border-b text-sm font-medium bg-gray-50">
+      <button onclick="switchTab('overview')" id="tab-overview" class="flex-1 py-3 text-center border-b-2 border-blue-600 font-bold text-blue-600">📊 總覽</button>
+      <button onclick="switchTab('brImport')" id="tab-brImport" class="flex-1 py-3 text-center border-b-2 border-transparent text-gray-500">📦 巴西進貨</button>
+    </nav>
 
-      // 儲存至 Google 試算表處理函式
-      const handleSaveToCloud = async (sheetName, data) => {
-        if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("YOUR_GAS_WEB_APP_URL")) {
-          showToast("❌ 請先在程式碼中設定正確的 GAS 網址！", "error");
-          return;
-        }
-        setIsSaving(true);
-        try {
-          const response = await fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            body: JSON.stringify({ sheet: sheetName, data: data }),
-          });
-          showToast("✅ 資料已成功備份至 Google 試算表！", "success");
-        } catch (err) {
-          console.error(err);
-          showToast("❌ 儲存失敗，請檢查網路連線", "error");
-        } finally {
-          setIsSaving(false);
-        }
-      };
+    <!-- 主要內容區 -->
+    <main class="p-4 space-y-4">
 
-      return (
-        <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg relative pb-20">
-          <!-- 頂部標題 -->
-          <header class="p-4 border-b text-center relative">
-            <h1 class="text-xl font-bold">銘海鑫商行 | 公司管理系統</h1>
-          </header>
-
-          <!-- Toast 提示磚 -->
-          {toast && (
-            <div class={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-md text-sm font-medium ${toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-              {toast.msg}
-            </div>
-          )}
-
-          <!-- 分頁頁籤 -->
-          <nav class="flex border-b text-sm font-medium bg-gray-50">
-            <button onClick={() => setCurrentTab('overview')} class={`flex-1 py-3 text-center border-b-2 ${currentTab === 'overview' ? 'border-blue-600 font-bold text-blue-600' : 'border-transparent text-gray-500'}`}>📊 總覽</button>
-            <button onClick={() => setCurrentTab('group')} class={`flex-1 py-3 text-center border-b-2 ${currentTab === 'group' ? 'border-blue-600 font-bold text-blue-600' : 'border-transparent text-gray-500'}`}>📝 團記錄</button>
-            <button onClick={() => setCurrentTab('brImport')} class={`flex-1 py-3 text-center border-b-2 ${currentTab === 'brImport' ? 'border-blue-600 font-bold text-blue-600' : 'border-transparent text-gray-500'}`}>📦 巴西進貨</button>
-            <button onClick={() => setCurrentTab('hr')} class={`flex-1 py-3 text-center border-b-2 ${currentTab === 'hr' ? 'border-blue-600 font-bold text-blue-600' : 'border-transparent text-gray-500'}`}>👥 人事</button>
-          </nav>
-
-          <main class="p-4">
-            <!-- 年月選擇器 -->
-            <div class="flex gap-2 mb-4">
-              <select value={year} onChange={(e) => setYear(e.target.value)} class="border rounded px-3 py-1 bg-white text-sm">
-                <option value="2026">2026 年</option>
-                <option value="2025">2025 年</option>
-              </select>
-              <select value={month} onChange={(e) => setMonth(e.target.value)} class="border rounded px-3 py-1 bg-white text-sm">
-                <option value="7">7 月</option>
-                <option value="8">8 月</option>
-              </select>
-            </div>
-
-            {/* 📊 總覽頁面 (2x2 雙欄宮格卡片) */}
-            {currentTab === 'overview' && (
-              <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="border rounded-xl p-3 bg-stone-50">
-                    <p class="text-xs text-stone-500 font-bold">總營業額</p>
-                    <p class="text-lg font-extrabold text-stone-800 mt-1">NT$ 2,000</p>
-                  </div>
-                  <div class="border rounded-xl p-3 bg-stone-50">
-                    <p class="text-xs text-stone-500 font-bold">總支出</p>
-                    <p class="text-lg font-extrabold text-stone-800 mt-1">NT$ 32,369</p>
-                  </div>
-                  <div class="border rounded-xl p-3 bg-stone-50">
-                    <p class="text-xs text-stone-500 font-bold">當月淨利</p>
-                    <p class="text-lg font-extrabold text-red-600 mt-1">NT$ -30,369</p>
-                  </div>
-                  <div class="border rounded-xl p-3 bg-stone-50">
-                    <p class="text-xs text-stone-500 font-bold">預估營業稅 (5%)</p>
-                    <p class="text-lg font-extrabold text-stone-800 mt-1">NT$ 100</p>
-                    <p class="text-[10px] text-stone-400 mt-0.5">（含稅營收+運費之5%）</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 📦 巴西進貨分頁（含橫向滑動表格 + 窄欄位 + 儲存按鈕） */}
-            {currentTab === 'brImport' && (
-              <div class="space-y-6">
-                <!-- 巴幣儲值 2x2 佈局 -->
-                <div class="border rounded-xl p-4 bg-white shadow-sm space-y-3">
-                  <h3 class="font-bold text-sm text-gray-700">巴幣儲值</h3>
-                  <div class="space-y-2">
-                    <input type="text" defaultValue="2026年7月20日" class="w-full border rounded px-2 py-1 text-sm" />
-                    <div class="flex gap-2">
-                      <input type="number" placeholder="金額" defaultValue="8000" class="w-1/2 border rounded px-2 py-1 text-sm" />
-                      <input type="number" placeholder="匯率" defaultValue="6.3" class="w-1/2 border rounded px-2 py-1 text-sm" />
-                    </div>
-                  </div>
-                  <button class="bg-gray-100 text-gray-700 w-full py-1.5 rounded text-xs font-bold">+ 新增儲值</button>
-                  <p class="text-xs text-gray-500 pt-1">當前巴幣餘額：<b>R$ 7,400</b> | 折合台幣：<b>NT$ 46,620</b></p>
-                </div>
-
-                <!-- 採購紀錄 (可橫向滑動表格) -->
-                <div class="border rounded-xl p-4 bg-white shadow-sm space-y-3">
-                  <h3 class="font-bold text-sm text-gray-700">採購紀錄</h3>
-                  <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm min-w-[320px]">
-                      <thead>
-                        <tr class="border-b text-xs text-gray-400">
-                          <th class="py-1 min-w-[100px]">廠商/品項</th>
-                          <th class="py-1 w-[60px]">數量</th>
-                          <th class="py-1 w-[80px]">巴幣金額</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr class="border-b">
-                          <td class="py-2"><input type="text" defaultValue="Havaianas" class="w-full border rounded px-1 py-0.5 text-xs" /></td>
-                          <td class="py-2"><input type="number" defaultValue="50" class="w-[50px] border rounded px-1 py-0.5 text-xs" /></td>
-                          <td class="py-2"><input type="number" defaultValue="600" class="w-[70px] border rounded px-1 py-0.5 text-xs" /></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <button class="bg-gray-100 text-gray-700 w-full py-1.5 rounded text-xs font-bold">+ 新增採購項目</button>
-                </div>
-
-                <!-- 💾 儲存按鈕 -->
-                <button
-                  onClick={() => handleSaveToCloud('巴西進貨', { year, month })}
-                  disabled={isSaving}
-                  class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50">
-                  {isSaving ? "⏳ 儲存同步中..." : "💾 儲存至 Google 試算表"}
-                </button>
-              </div>
-            )}
-
-            {/* 📝 團記錄 & 👥 人事頁面預留儲存按鈕 */}
-            {(currentTab === 'group' || currentTab === 'hr') && (
-              <div class="space-y-4 text-center py-8 text-gray-500 text-sm">
-                <p>資料表單區塊</p>
-                <button
-                  onClick={() => handleSaveToCloud(currentTab === 'group' ? '團記錄' : '人事', { year, month })}
-                  disabled={isSaving}
-                  class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50 mt-10">
-                  {isSaving ? "⏳ 儲存同步中..." : "💾 儲存至 Google 試算表"}
-                </button>
-              </div>
-            )}
-          </main>
+      <!-- 📊 總覽分頁 (2x2 卡片宮格) -->
+      <div id="page-overview" class="space-y-4">
+        <h2 class="text-sm font-bold text-gray-600">月營運數據</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="border rounded-xl p-3 bg-stone-50">
+            <p class="text-xs text-stone-500 font-bold">月營業額</p>
+            <p class="text-base font-extrabold text-stone-800 mt-1">$100</p>
+            <p class="text-[10px] text-stone-400 mt-0.5">1工作日·均 $100</p>
+          </div>
+          <div class="border rounded-xl p-3 bg-stone-50">
+            <p class="text-xs text-stone-500 font-bold">月支出合計</p>
+            <p class="text-base font-extrabold text-red-600 mt-1">$0</p>
+            <p class="text-[10px] text-stone-400 mt-0.5">貨款+人事+支出</p>
+          </div>
+          <div class="border rounded-xl p-3 bg-stone-50">
+            <p class="text-xs text-stone-500 font-bold">月實賺金額</p>
+            <p class="text-base font-extrabold text-emerald-600 mt-1">+100</p>
+            <p class="text-[10px] text-emerald-600 font-medium mt-0.5">🎉 本月盈餘</p>
+          </div>
+          <div class="border rounded-xl p-3 bg-stone-50">
+            <p class="text-xs text-stone-500 font-bold">預估營業稅 (5%)</p>
+            <p class="text-base font-extrabold text-stone-800 mt-1">$5</p>
+            <p class="text-[10px] text-stone-400 mt-0.5">（含稅營收+運費5%）</p>
+          </div>
         </div>
-      );
+      </div>
+
+      <!-- 📦 巴西進貨分頁 -->
+      <div id="page-brImport" class="space-y-6 hidden">
+        <!-- 巴幣儲值 2x2 欄位 -->
+        <div class="border rounded-xl p-4 bg-white shadow-sm space-y-3">
+          <h3 class="font-bold text-sm text-gray-700">巴幣儲值</h3>
+          <div class="space-y-2">
+            <input type="date" value="2026-07-20" class="w-full border rounded px-3 py-1.5 text-sm" />
+            <div class="flex gap-2">
+              <input type="number" placeholder="金額 (R$)" class="w-1/2 border rounded px-3 py-1.5 text-sm" />
+              <input type="number" placeholder="匯率" class="w-1/2 border rounded px-3 py-1.5 text-sm" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 💾 儲存至雲端按鈕 -->
+        <button id="save-btn" onclick="saveToCloud('巴西進貨')" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow active:scale-95 transition-all">
+          💾 儲存至 Google 試算表
+        </button>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ⚠️ 請把引號內的內容替換成你在 GAS 按「部署」拿到的網址（雙引號要保留）
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec";
+
+    // 切換頁籤
+    function switchTab(tabName) {
+      document.getElementById('page-overview').classList.add('hidden');
+      document.getElementById('page-brImport').classList.add('hidden');
+      document.getElementById('tab-overview').className = "flex-1 py-3 text-center border-b-2 border-transparent text-gray-500";
+      document.getElementById('tab-brImport').className = "flex-1 py-3 text-center border-b-2 border-transparent text-gray-500";
+
+      document.getElementById('page-' + tabName).classList.remove('hidden');
+      document.getElementById('tab-' + tabName).className = "flex-1 py-3 text-center border-b-2 border-blue-600 font-bold text-blue-600";
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    // 顯示提示磚
+    function showToast(message, isSuccess) {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.className = `fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-md text-sm font-medium ${isSuccess ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    // 送出資料至 GAS
+    async function saveToCloud(sheetName) {
+      const btn = document.getElementById('save-btn');
+      if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("YOUR_GAS_WEB_APP_URL")) {
+        showToast("❌ 請先貼上正確的 GAS 部署網址！", false);
+        return;
+      }
+
+      btn.innerText = "⏳ 儲存同步中...";
+      btn.disabled = true;
+
+      try {
+        await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors', // 避開跨網域限制
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheet: sheetName, timestamp: new Date().toLocaleString() })
+        });
+        showToast("✅ 資料已成功備份至 Google 試算表！", true);
+      } catch (error) {
+        showToast("❌ 儲存失敗，請檢查網路", false);
+      } finally {
+        btn.innerText = "💾 儲存至 Google 試算表";
+        btn.disabled = false;
+      }
+    }
   </script>
 </body>
 </html>
