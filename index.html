@@ -979,26 +979,29 @@ function App() {
     );
   }
 
+  return (
+    <ToastProvider>
+      <div style={{ minHeight: "100vh", background: C.bg }}>
         <header style={{ padding: "20px 24px 16px 24px", background: NAV.bg }}>
-        <h1 style={{
-          fontSize: 22,
-          fontWeight: 800,
-          margin: 0,
-          letterSpacing: "1.2px",
-          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
-          background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px"
-        }}>
-          銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ 公司管理系統</span>
-        </h1>
-        <p style={{ color: C.muted, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px" }}>
-          {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端儲存"}
-        </p>
-      </header>
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 800,
+            margin: 0,
+            letterSpacing: "1.2px",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
+            background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ 公司管理系統</span>
+          </h1>
+          <p style={{ color: C.muted, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px" }}>
+            {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端儲存"}
+          </p>
+        </header>
 
         <Navbar tab={tab} setTab={setTab} />
 
