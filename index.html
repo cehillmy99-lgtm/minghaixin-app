@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>銘海鑫商行｜公司管理系統</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="銘海鑫商行">
+<meta name="theme-color" content="#111827">
+
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .animate-spin { animation: mhx-spin 0.8s linear infinite; }
+  @keyframes mhx-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+
+<!-- React / ReactDOM -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Recharts（圖表）需要的相依套件：prop-types 和 react-is 都必須先載入 -->
+<script src="https://unpkg.com/prop-types/prop-types.js"></script>
+<script src="https://unpkg.com/react-is@18/umd/react-is.production.min.js"></script>
+<script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+<!-- Babel：讓瀏覽器直接讀懂 JSX，不需要事先打包 -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<div id="mhx-error-box" style="display:none; position:fixed; top:0; left:0; right:0; background:#FEE2E2; color:#991B1B; padding:16px; font-size:13px; font-family:monospace; white-space:pre-wrap; z-index:99999; max-height:80vh; overflow:auto; border-bottom:3px solid #DC2626;"></div>
+
+<script>
+  function mhxShowError(msg) {
+    var box = document.getElementById('mhx-error-box');
+    box.style.display = 'block';
+    box.textContent = "⚠ 發生錯誤，請截圖這段文字給我：\n\n" + msg;
+  }
+  window.onerror = function (message, source, lineno, colno, error) {
+    mhxShowError(message + "\n(line " + lineno + ")");
+  };
+  window.addEventListener('unhandledrejection', function (e) {
+    mhxShowError("Promise error: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+</script>
+
+<script type="text/babel" data-presets="react">
+// ---- 免安裝版：改用瀏覽器全域變數，不需要 npm / Vite ----
+const { useState, useEffect, useMemo, useContext, createContext } = React;
+const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+
+// 用簡單符號取代 lucide-react 圖示（避免額外套件依賴）
+function makeIcon(glyph) {
+  return function Icon({ size = 16, color, className, style }) {
+    return (
+      <span className={className} style={{ fontSize: size, lineHeight: 1, color: color || "currentColor", display: "inline-block", ...style }}>
+        {glyph}
+      </span>
+    );
+  };
+}
+const Plus = makeIcon("+");
+const Trash2 = makeIcon("\u{1F5D1}");
+const ChevronDown = makeIcon("\u25BE");
+const ChevronRight = makeIcon("\u25B8");
+const TrendingUp = makeIcon("\u25B2");
+const TrendingDown = makeIcon("\u25BC");
+const AlertCircle = makeIcon("\u26A0");
+const CheckCircle2 = makeIcon("\u2714");
+const MinusCircle = makeIcon("\u2796");
+const Receipt = makeIcon("\u{1F9FE}");
+const FileText = makeIcon("\u{1F4C4}");
+const Save = makeIcon("\u{1F4BE}");
+const CheckCircle = makeIcon("\u2705");
+const XCircle = makeIcon("\u274C");
+function Loader2({ size = 16, color, className }) {
+  return (
+    <span className={className} style={{ display: "inline-block", width: size, height: size, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", color: color || "currentColor" }} />
+  );
+}
+
+/* ============================== 常數與樣式 ============================== */
+
+// Google Apps Script Web App 部署後的網址，請自行替換
+// 部署方式：GAS 專案 → 部署 → 新增部署 → 類型選「網頁應用程式」→ 存取權限「任何人」
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec";
+
+// 全站色彩：高級現代極簡灰黑色系（嚴格套用指定色碼）
+const C = {
+  text: "#111827",
+  bg: "#F4F5F7",
+  card: "#FFFFFF",
+  cardAlt: "#F4F5F7",
+  border: "#E5E7EB",
+  muted: "#6B7280",
+  good: "#16803C",
+  ok: "#CA8A04",
+  bad: "#DC2626",
+};
+
+// 導覽列
+const NAV = {
+  bg: "#E5E7EB",
+  inactive: "#6B7280",
+  active: "#000000",
+};
+
+const STORAGE_KEY = "mhx-data";
+
+// 瀏覽器本機儲存（部署成獨立網站/PWA 後使用，資料存在使用者手機/瀏覽器裡）
+const storage = {
+  get: async (key) => {
+    const v = localStorage.getItem(key);
+    return v === null ? null : { value: v };
+  },
+  set: async (key, value) => {
+    localStorage.setItem(key, value);
+    return { value };
+  },
+};
+const PURCHASE_ITEMS = ["Havaianas", "Ipanema", "Melissa", "其它"];
+const VENDORS = ["Site", "Nova Presto", "Marcelle", "Higienopolis", "Vou de Chinelo", "Oscar Freire", "Rei de Chinelus", "Havam Store", "Chinelos Moda", "其它"];
+const EXPENSE_ITEMS = ["國際運費", "稅金", "會計師", "其它"];
+
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const fmt = (n) => (Number(n) || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 });
+const numOr0 = (v) => (isNaN(parseFloat(v)) ? 0 : parseFloat(v));
+const monthName = (m) => `${m} 月`;
+
+function emptyTeam(year, month) {
+  return {
+    id: uid(), year, month, name: "",
+    revenueEntries: [{ id: uid(), amount: "", taxIncluded: false }],
+    customerShipping: "",
+    purchases: [], remittances: [],
+    helperName: "", helperDeductions: [],
+  };
+}
+
+/* ============================== 計算邏輯 ============================== */
+
+function teamMetrics(team) {
+  const revenueTotal = team.revenueEntries.reduce((s, r) => s + numOr0(r.amount), 0);
+  const shipping = numOr0(team.customerShipping);
+  // 客人總運費固定含稅，計入該團應課稅總額
+  const taxIncludedRevenue = team.revenueEntries.filter((r) => r.taxIncluded).reduce((s, r) => s + numOr0(r.amount), 0) + shipping;
+  const slipperQty = team.purchases.reduce((s, p) => s + numOr0(p.qty), 0);
+  const purchasesBRL = team.purchases.reduce((s, p) => s + numOr0(p.brl), 0);
+
+  // 巴幣儲值：逐筆有各自的當團匯率，換算加權平均匯率
+  const depositedBRL = team.remittances.reduce((s, r) => s + numOr0(r.brlOut), 0);
+  const depositedTWD = team.remittances.reduce((s, r) => s + numOr0(r.brlOut) * numOr0(r.rate), 0);
+  const avgRate = depositedBRL > 0 ? depositedTWD / depositedBRL : 0;
+
+  const purchasesTWD = purchasesBRL * avgRate;
+  const helperGross = slipperQty * 30;
+  const deductionsTotal = team.helperDeductions.reduce((s, d) => s + numOr0(d.amount), 0);
+  const helperNet = helperGross - deductionsTotal;
+
+  const currentBalanceBRL = depositedBRL - purchasesBRL;
+  const currentBalanceTWD = currentBalanceBRL * avgRate;
+
+  return {
+    revenueTotal, taxIncludedRevenue, slipperQty, purchasesBRL, purchasesTWD, helperGross, deductionsTotal, helperNet,
+    depositedBRL, depositedTWD, avgRate, currentBalanceBRL, currentBalanceTWD,
+  };
+}
+
+function monthAggregate(teams, companyExpenses, year, month) {
+  const monthTeams = teams.filter((t) => t.year === year && t.month === month);
+  const monthExpenses = companyExpenses.filter((e) => e.year === year && e.month === month);
+
+  let revenueTotal = 0, taxIncludedRevenue = 0, purchasesTWD = 0, helperNetTotal = 0;
+  monthTeams.forEach((t) => {
+    const m = teamMetrics(t);
+    revenueTotal += m.revenueTotal;
+    taxIncludedRevenue += m.taxIncludedRevenue;
+    purchasesTWD += m.purchasesTWD;
+    helperNetTotal += m.helperNet;
+  });
+  const companyExpenseTotal = monthExpenses.reduce((s, e) => s + numOr0(e.amount), 0);
+  const totalExpense = companyExpenseTotal + purchasesTWD + helperNetTotal;
+  const netProfit = revenueTotal - totalExpense;
+  const taxAmount = taxIncludedRevenue * 0.05;
+  const purchaseRatio = revenueTotal > 0 ? purchasesTWD / revenueTotal : 0;
+  const companyExpenseRatio = revenueTotal > 0 ? companyExpenseTotal / revenueTotal : 0;
+  const combinedRatio = purchaseRatio + companyExpenseRatio;
+  let status = "優良";
+  if (combinedRatio > 0.8) status = "欠佳";
+  else if (combinedRatio > 0.6) status = "尚可";
+
+  return { monthTeams, monthExpenses, revenueTotal, taxIncludedRevenue, purchasesTWD, helperNetTotal, companyExpenseTotal, totalExpense, netProfit, taxAmount, purchaseRatio, companyExpenseRatio, status };
+}
+
+/* ============================== 共用小元件 ============================== */
+
+function Btn({ children, onClick, variant = "primary", size = "md", disabled }) {
+  const base = {
+    display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 8, fontWeight: 600,
+    cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1,
+    fontSize: size === "sm" ? 13 : 14, padding: size === "sm" ? "5px 10px" : "8px 16px",
+  };
+  const variants = {
+    primary: { background: C.text, color: "#FFFFFF", border: `1px solid ${C.text}` },
+    outline: { background: "transparent", color: C.text, border: `1px solid ${C.border}` },
+    ghost: { background: "transparent", color: C.muted, border: "1px solid transparent" },
+    danger: { background: "transparent", color: C.bad, border: `1px solid ${C.bad}` },
+  };
+  return <button type="button" disabled={disabled} onClick={onClick} style={{ ...base, ...variants[variant] }}>{children}</button>;
+}
+
+function Field({ label, children }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: C.text }}>
+      <span style={{ fontWeight: 600 }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputStyle = { border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 8px", color: C.text, background: "#FFFFFF", fontSize: 14, outline: "none" };
+function Input(props) { return <input {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
+function Select(props) { return <select {...props} style={{ ...inputStyle, ...(props.style || {}) }} />; }
+
+function Card({ children, style }) {
+  return <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(17,24,39,0.06)", ...style }}>{children}</div>;
+}
+
+function SectionTitle({ icon, children }) {
+  return (
+    <h2 style={{ display: "flex", alignItems: "center", gap: 8, color: C.text, fontSize: 18, fontWeight: 800, margin: "0 0 12px 0" }}>
+      {icon} {children}
+    </h2>
+  );
+}
+
+function Table({ headers, children }) {
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr>{headers.map((h, i) => <th key={i} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+function Td({ children, style, colSpan }) { return <td colSpan={colSpan} style={{ padding: "6px 8px", borderBottom: `1px solid ${C.border}`, color: C.text, ...style }}>{children}</td>; }
+
+function YearMonthPicker({ year, month, onYear, onMonth, years }) {
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <Select value={year} onChange={(e) => onYear(Number(e.target.value))}>
+        {years.map((y) => <option key={y} value={y}>{y} 年</option>)}
+      </Select>
+      <Select value={month} onChange={(e) => onMonth(Number(e.target.value))}>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
+      </Select>
+    </div>
+  );
+}
+
+// 團選擇器：巴西進貨／人事分頁需先選定該月份的哪一團
+function TeamSelector({ teams, year, month, selectedId, onSelect, onCreate }) {
+  const monthTeams = teams.filter((t) => t.year === year && t.month === month);
+  useEffect(() => {
+    if (monthTeams.length && !monthTeams.find((t) => t.id === selectedId)) {
+      onSelect(monthTeams[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month, teams.length]);
+
+  if (monthTeams.length === 0) {
+    return (
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ color: C.muted, marginBottom: 10 }}>本月尚未建立任何團，請先新增一團。</div>
+        <Btn onClick={onCreate}><Plus size={16} /> 新增一團</Btn>
+      </Card>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+      <Select value={selectedId || ""} onChange={(e) => onSelect(e.target.value)}>
+        {monthTeams.map((t) => <option key={t.id} value={t.id}>{t.name || "（未命名團）"}</option>)}
+      </Select>
+      <Btn variant="outline" size="sm" onClick={onCreate}><Plus size={14} /> 新增一團</Btn>
+    </div>
+  );
+}
+
+/* ============================== 總覽 ============================== */
+
+function OverviewDashboard({ teams, expenses, years, onGoToTeams }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+
+  const agg = monthAggregate(teams, expenses, year, month);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <Card style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>總營業額</div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: C.text }}>NT$ {fmt(agg.revenueTotal)}</div>
+        </Card>
+        <Card style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>總支出</div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: C.text }}>NT$ {fmt(agg.totalExpense)}</div>
+        </Card>
+        <Card style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>當月實賺金額（淨利）</div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: agg.netProfit >= 0 ? C.good : C.bad }}>NT$ {fmt(agg.netProfit)}</div>
+        </Card>
+        <Card style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>預估當月營業稅（5%）</div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: C.text }}>NT$ {fmt(Math.round(agg.taxAmount))}</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>（含稅營收＋運費之5%）</div>
+        </Card>
+      </div>
+      <Card>
+        <SectionTitle>本月各團概況</SectionTitle>
+        <Table headers={["團名", "營業額"]}>
+          {agg.monthTeams.map((t) => (
+            <tr key={t.id}><Td>{t.name || "（未命名團）"}</Td><Td>NT$ {fmt(teamMetrics(t).revenueTotal)}</Td></tr>
+          ))}
+          {agg.monthTeams.length === 0 && <tr><Td colSpan={2}>本月尚無紀錄</Td></tr>}
+        </Table>
+        <div style={{ marginTop: 12 }}>
+          <Btn variant="outline" size="sm" onClick={onGoToTeams}>前往「團記錄」新增或編輯</Btn>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== 團記錄（模組1：營業額／運費／稅制） ============================== */
+
+function TeamsTab({ teams, setTeams, years }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const filtered = teams.filter((t) => t.year === year && t.month === month);
+  const monthTotal = filtered.reduce((s, t) => s + teamMetrics(t).revenueTotal, 0);
+
+  const addTeam = () => setTeams([...teams, emptyTeam(year, month)]);
+  const updateTeam = (t) => setTeams(teams.map((x) => (x.id === t.id ? t : x)));
+  const deleteTeam = (id) => setTeams(teams.filter((x) => x.id !== id));
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+        <YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} />
+        <Btn onClick={addTeam}><Plus size={16} /> 新增一團</Btn>
+      </div>
+      <div style={{ marginBottom: 12, fontSize: 14, color: C.text, fontWeight: 700 }}>
+        {year} 年 {month} 月　共 {filtered.length} 團　營業額合計 NT$ {fmt(monthTotal)}
+      </div>
+      {filtered.length === 0 && <Card><span style={{ color: C.muted }}>本月尚無紀錄，點擊「新增一團」開始輸入。</span></Card>}
+      {filtered.map((t) => (
+        <TeamRevenueCard key={t.id} team={t} onChange={updateTeam} onDelete={deleteTeam} />
+      ))}
+      <SaveToCloudButton sheetName="團紀錄" getPayload={() => filtered} />
+    </div>
+  );
+}
+
+function TeamRevenueCard({ team, onChange, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const m = teamMetrics(team);
+  const update = (patch) => onChange({ ...team, ...patch });
+  const addRevenue = () => update({ revenueEntries: [...team.revenueEntries, { id: uid(), amount: "", taxIncluded: false }] });
+  const updRevenue = (id, patch) => update({ revenueEntries: team.revenueEntries.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+  const delRevenue = (id) => update({ revenueEntries: team.revenueEntries.filter((r) => r.id !== id) });
+
+  return (
+    <Card style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setOpen(!open)}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {open ? <ChevronDown size={18} color={C.text} /> : <ChevronRight size={18} color={C.text} />}
+          <strong style={{ color: C.text, fontSize: 15 }}>{team.name || "（未命名團）"}</strong>
+        </div>
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <span style={{ fontSize: 13, color: C.text }}>NT$ {fmt(m.revenueTotal)}</span>
+          <Btn variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(team.id); }}><Trash2 size={14} /> 刪除</Btn>
+        </div>
+      </div>
+      {open && (
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Field label="團名/備註"><Input value={team.name} onChange={(e) => update({ name: e.target.value })} placeholder="例：7月第1團" /></Field>
+          </div>
+          <Table headers={["金額", "含稅？", ""]}>
+            {team.revenueEntries.map((r) => (
+              <tr key={r.id}>
+                <Td><Input type="number" value={r.amount} onChange={(e) => updRevenue(r.id, { amount: e.target.value })} placeholder="0" style={{ width: 140 }} /></Td>
+                <Td><label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={r.taxIncluded} onChange={(e) => updRevenue(r.id, { taxIncluded: e.target.checked })} /> 含稅</label></Td>
+                <Td><Btn variant="ghost" size="sm" onClick={() => delRevenue(r.id)}><Trash2 size={14} /></Btn></Td>
+              </tr>
+            ))}
+          </Table>
+          <Btn variant="outline" size="sm" onClick={addRevenue}><Plus size={14} /> 新增一筆營業額</Btn>
+          <Field label="客人總運費（固定含稅）"><Input type="number" value={team.customerShipping} onChange={(e) => update({ customerShipping: e.target.value })} placeholder="0" style={{ width: 180 }} /></Field>
+          <div style={{ fontSize: 13, color: C.text }}>
+            營業額合計：<strong>NT$ {fmt(m.revenueTotal)}</strong>（含稅總額：NT$ {fmt(m.taxIncludedRevenue)}，含運費）
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ============================== 巴西進貨（模組3） ============================== */
+
+function BrazilTab({ teams, setTeams, years }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [selectedId, setSelectedId] = useState(null);
+
+  const team = teams.find((t) => t.id === selectedId);
+  const updateTeam = (patch) => setTeams(teams.map((t) => (t.id === team.id ? { ...t, ...patch } : t)));
+  const createTeam = () => {
+    const nt = emptyTeam(year, month);
+    setTeams([...teams, nt]);
+    setSelectedId(nt.id);
+  };
+
+  if (!team) {
+    return (
+      <div>
+        <div style={{ marginBottom: 12 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
+        <TeamSelector teams={teams} year={year} month={month} selectedId={selectedId} onSelect={setSelectedId} onCreate={createTeam} />
+      </div>
+    );
+  }
+
+  const m = teamMetrics(team);
+  const addPurchase = () => updateTeam({ purchases: [...team.purchases, { id: uid(), item: "Havaianas", vendor: "Site", customVendor: "", qty: "", brl: "" }] });
+  const updPurchase = (id, patch) => updateTeam({ purchases: team.purchases.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+  const delPurchase = (id) => updateTeam({ purchases: team.purchases.filter((p) => p.id !== id) });
+  const addRemit = () => updateTeam({ remittances: [...team.remittances, { id: uid(), date: "", brlOut: "", rate: "" }] });
+  const updRemit = (id, patch) => updateTeam({ remittances: team.remittances.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+  const delRemit = (id) => updateTeam({ remittances: team.remittances.filter((r) => r.id !== id) });
+
+  const cardStyle = { marginBottom: 10, padding: 12 };
+  const titleStyle = { fontSize: 14, marginBottom: 8 };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 10 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
+      <div style={{ marginBottom: 10 }}>
+        <TeamSelector teams={teams} year={year} month={month} selectedId={selectedId} onSelect={setSelectedId} onCreate={createTeam} />
+      </div>
+
+      {/* 巴幣儲值：移到最上方，先儲值再採購 */}
+      <Card style={cardStyle}>
+        <SectionTitle><span style={titleStyle}>巴幣儲值</span></SectionTitle>
+        {team.remittances.map((r) => (
+          <div key={r.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+              <Input type="date" value={r.date} onChange={(e) => updRemit(r.id, { date: e.target.value })} style={{ fontSize: 12, padding: "5px 6px", flex: 1, minWidth: 0 }} />
+              <Btn variant="ghost" size="sm" onClick={() => delRemit(r.id)}><Trash2 size={14} /></Btn>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <Input type="number" value={r.brlOut} onChange={(e) => updRemit(r.id, { brlOut: e.target.value })} placeholder="巴幣金額" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
+              <Input type="number" step="0.01" value={r.rate} onChange={(e) => updRemit(r.id, { rate: e.target.value })} placeholder="當團匯率" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
+            </div>
+          </div>
+        ))}
+        <Btn variant="outline" size="sm" onClick={addRemit}><Plus size={14} /> 新增儲值</Btn>
+        <div style={{ marginTop: 8, fontSize: 13, color: C.text, display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <span>當前巴幣餘額：<strong>R$ {fmt(m.currentBalanceBRL)}</strong></span>
+          <span>折合台幣：<strong>NT$ {fmt(m.currentBalanceTWD)}</strong></span>
+        </div>
+      </Card>
+
+      {/* 採購紀錄：橫向滑動表格，欄寬極致縮小避免爆框 */}
+      <Card style={cardStyle}>
+        <SectionTitle><span style={titleStyle}>採購紀錄</span></SectionTitle>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr>
+                {["品項", "廠商", "數量", "巴幣金額", ""].map((h, i) => (
+                  <th key={i} style={{ textAlign: "left", padding: "4px 6px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {team.purchases.map((p) => (
+                <tr key={p.id}>
+                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                    <Select value={p.item} onChange={(e) => updPurchase(p.id, { item: e.target.value })} style={{ fontSize: 12, padding: "5px 4px", width: 100 }}>
+                      {PURCHASE_ITEMS.map((it) => <option key={it} value={it}>{it}</option>)}
+                    </Select>
+                  </td>
+                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                    <Select value={p.vendor} onChange={(e) => updPurchase(p.id, { vendor: e.target.value })} style={{ fontSize: 12, padding: "5px 4px", width: 120 }}>
+                      {VENDORS.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </Select>
+                    {p.vendor === "其它" && (
+                      <Input value={p.customVendor} onChange={(e) => updPurchase(p.id, { customVendor: e.target.value })} placeholder="自填廠商" style={{ fontSize: 12, padding: "5px 4px", marginTop: 4, width: 120 }} />
+                    )}
+                  </td>
+                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                    <Input type="number" value={p.qty} onChange={(e) => updPurchase(p.id, { qty: e.target.value })} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 55 }} />
+                  </td>
+                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                    <Input type="number" value={p.brl} onChange={(e) => updPurchase(p.id, { brl: e.target.value })} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 80 }} />
+                  </td>
+                  <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
+                    <Btn variant="ghost" size="sm" onClick={() => delPurchase(p.id)}><Trash2 size={14} /></Btn>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: 8 }}><Btn variant="outline" size="sm" onClick={addPurchase}><Plus size={14} /> 新增採購項目</Btn></div>
+        <div style={{ marginTop: 8, fontSize: 13, color: C.text }}>
+          拖鞋總數量：<strong>{fmt(m.slipperQty)}</strong>　採購巴幣總額：<strong>R$ {fmt(m.purchasesBRL)}</strong>　換算台幣：<strong>NT$ {fmt(m.purchasesTWD)}</strong>
+        </div>
+        <div style={{ marginTop: 4, fontSize: 11, color: C.muted }}>換算採用巴幣儲值加權平均匯率：{fmt(m.avgRate)}</div>
+      </Card>
+      <SaveToCloudButton sheetName="巴西進貨" getPayload={() => ({ teamId: team.id, teamName: team.name, remittances: team.remittances, purchases: team.purchases })} />
+    </div>
+  );
+}
+
+/* ============================== 人事（模組4） ============================== */
+
+function StaffTab({ teams, setTeams, years }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [selectedId, setSelectedId] = useState(null);
+
+  const team = teams.find((t) => t.id === selectedId);
+  const updateTeam = (patch) => setTeams(teams.map((t) => (t.id === team.id ? { ...t, ...patch } : t)));
+  const createTeam = () => {
+    const nt = emptyTeam(year, month);
+    setTeams([...teams, nt]);
+    setSelectedId(nt.id);
+  };
+
+  if (!team) {
+    return (
+      <div>
+        <div style={{ marginBottom: 16 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
+        <TeamSelector teams={teams} year={year} month={month} selectedId={selectedId} onSelect={setSelectedId} onCreate={createTeam} />
+      </div>
+    );
+  }
+
+  const m = teamMetrics(team);
+  const addDeduction = () => updateTeam({ helperDeductions: [...team.helperDeductions, { id: uid(), name: "", amount: "" }] });
+  const updDeduction = (id, patch) => updateTeam({ helperDeductions: team.helperDeductions.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
+  const delDeduction = (id) => updateTeam({ helperDeductions: team.helperDeductions.filter((d) => d.id !== id) });
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
+      <TeamSelector teams={teams} year={year} month={month} selectedId={selectedId} onSelect={setSelectedId} onCreate={createTeam} />
+
+      <Card>
+        <SectionTitle>小幫手人事支出</SectionTitle>
+        <Field label="小幫手姓名"><Input value={team.helperName} onChange={(e) => updateTeam({ helperName: e.target.value })} placeholder="姓名" style={{ width: 200 }} /></Field>
+        <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>薪資 = 拖鞋總數量 {fmt(m.slipperQty)} × 30 = <strong>NT$ {fmt(m.helperGross)}</strong></div>
+        <div style={{ marginTop: 14 }}>
+          <Table headers={["代購品名", "代購金額", ""]}>
+            {team.helperDeductions.map((d) => (
+              <tr key={d.id}>
+                <Td><Input value={d.name} onChange={(e) => updDeduction(d.id, { name: e.target.value })} placeholder="品名" style={{ width: 160 }} /></Td>
+                <Td><Input type="number" value={d.amount} onChange={(e) => updDeduction(d.id, { amount: e.target.value })} style={{ width: 110 }} /></Td>
+                <Td><Btn variant="ghost" size="sm" onClick={() => delDeduction(d.id)}><Trash2 size={14} /></Btn></Td>
+              </tr>
+            ))}
+          </Table>
+          <div style={{ marginTop: 8 }}><Btn variant="outline" size="sm" onClick={addDeduction}><Plus size={14} /> 新增代購扣抵</Btn></div>
+        </div>
+        <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>代購扣抵合計：NT$ {fmt(m.deductionsTotal)}　剩餘應付薪資：<strong>NT$ {fmt(m.helperNet)}</strong></div>
+      </Card>
+      <SaveToCloudButton sheetName="人事" getPayload={() => ({ teamId: team.id, teamName: team.name, helperName: team.helperName, helperDeductions: team.helperDeductions, helperGross: m.helperGross, helperNet: m.helperNet })} />
+    </div>
+  );
+}
+
+/* ============================== 公司支出（模組5） ============================== */
+
+function ExpensesTab({ expenses, setExpenses, years }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const filtered = expenses.filter((e) => e.year === year && e.month === month);
+  const total = filtered.reduce((s, e) => s + numOr0(e.amount), 0);
+
+  const add = () => setExpenses([...expenses, { id: uid(), year, month, item: "國際運費", customItem: "", amount: "" }]);
+  const upd = (id, patch) => setExpenses(expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  const del = (id) => setExpenses(expenses.filter((e) => e.id !== id));
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+        <YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} />
+        <Btn onClick={add}><Plus size={16} /> 新增支出</Btn>
+      </div>
+      <Card>
+        <Table headers={["支出項目", "其它名稱", "金額", ""]}>
+          {filtered.map((e) => (
+            <tr key={e.id}>
+              <Td><Select value={e.item} onChange={(ev) => upd(e.id, { item: ev.target.value })}>{EXPENSE_ITEMS.map((it) => <option key={it} value={it}>{it}</option>)}</Select></Td>
+              <Td>{e.item === "其它" && <Input value={e.customItem} onChange={(ev) => upd(e.id, { customItem: ev.target.value })} placeholder="自填名稱" style={{ width: 140 }} />}</Td>
+              <Td><Input type="number" value={e.amount} onChange={(ev) => upd(e.id, { amount: ev.target.value })} style={{ width: 120 }} /></Td>
+              <Td><Btn variant="ghost" size="sm" onClick={() => del(e.id)}><Trash2 size={14} /></Btn></Td>
+            </tr>
+          ))}
+          {filtered.length === 0 && <tr><Td colSpan={4}>本月尚無支出紀錄</Td></tr>}
+        </Table>
+      </Card>
+      <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: C.text }}>{year} 年 {month} 月支出合計：NT$ {fmt(total)}</div>
+      <SaveToCloudButton sheetName="公司支出" getPayload={() => filtered} />
+    </div>
+  );
+}
+
+/* ============================== 月報損益（模組6+7+9） ============================== */
+
+function RatioBadge({ ratio }) {
+  const pct = ratio * 100;
+  let status = "優良", color = C.good, symbol = "✓";
+  if (pct > 60) { status = "欠佳"; color = C.bad; symbol = "✗"; }
+  else if (pct > 40) { status = "尚可"; color = C.ok; symbol = "!"; }
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, background: C.bg, border: `1px solid ${C.border}`, color, fontWeight: 700, fontSize: 12 }}>
+      {symbol} {status}
+    </span>
+  );
+}
+
+function RatioRow({ label, ratio }) {
+  const pct = Math.min(ratio * 100, 100);
+  let barColor = C.good;
+  if (ratio * 100 > 60) barColor = C.bad;
+  else if (ratio * 100 > 40) barColor = C.ok;
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ color: C.text, fontWeight: 700, fontSize: 14 }}>{label}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <RatioBadge ratio={ratio} />
+          <span style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>{(ratio * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+      <div style={{ width: "100%", height: 8, borderRadius: 999, background: `#EEF0F2` }}>
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: barColor, transition: "width .3s" }} />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, tone }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
+      <div style={{ fontSize: 13, color: C.muted, fontWeight: 600, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: tone || C.text }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function MonthlyTab({ teams, expenses, years }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const agg = monthAggregate(teams, expenses, year, month);
+
+  const yearMonths = useMemo(() => {
+    const set = new Set();
+    teams.forEach((t) => { if (t.year === year) set.add(t.month); });
+    return [...set];
+  }, [teams, year]);
+  const yearlyTotals = yearMonths.map((mo) => monthAggregate(teams, expenses, year, mo).revenueTotal);
+  const avgRevenue = yearlyTotals.length ? yearlyTotals.reduce((a, b) => a + b, 0) / yearlyTotals.length : 0;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
+
+      {/* 區塊一：本月焦點總覽看板 */}
+      <div style={{
+        background: C.text, color: "#FFFFFF", borderRadius: 16, padding: "22px 24px", marginBottom: 20,
+      }}>
+        <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>{year} 年 {month} 月　當月實賺金額（淨利）</div>
+        <div style={{ fontSize: 36, fontWeight: 900, letterSpacing: 0.5 }}>$ {fmt(agg.netProfit)}</div>
+        <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.25)" }}>
+          <div><div style={{ fontSize: 12, opacity: 0.75 }}>當月總團數</div><div style={{ fontSize: 16, fontWeight: 700 }}>{agg.monthTeams.length} 團</div></div>
+          <div><div style={{ fontSize: 12, opacity: 0.75 }}>月累積總營收</div><div style={{ fontSize: 16, fontWeight: 700 }}>$ {fmt(agg.revenueTotal)}</div></div>
+          <div><div style={{ fontSize: 12, opacity: 0.75 }}>月累積總支出</div><div style={{ fontSize: 16, fontWeight: 700 }}>$ {fmt(agg.totalExpense)}</div></div>
+        </div>
+      </div>
+
+      {/* 區塊二：本月損益四格概況卡片 */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 20 }}>
+        <StatCard label="月營業額" value={`$ ${fmt(agg.revenueTotal)}`} sub="含客人總運費" />
+        <StatCard label="月支出合計" value={`$ ${fmt(agg.totalExpense)}`} sub="貨款＋人事＋公司支出" tone={C.bad} />
+        <StatCard label="當月實賺金額" value={`${agg.netProfit >= 0 ? "+" : ""}${fmt(agg.netProfit)}`} sub="🎉 本月盈餘" tone={C.good} />
+        <StatCard label="平均每月營業額" value={`$ ${fmt(avgRevenue)}`} sub={`${year} 年已有紀錄月份平均`} />
+      </div>
+
+      {/* 區塊三：成本佔比分析與警示 */}
+      <Card style={{ marginBottom: 20 }}>
+        <SectionTitle>成本佔比分析</SectionTitle>
+        <RatioRow label="採購佔比" ratio={agg.purchaseRatio} />
+        <RatioRow label="公司支出佔比" ratio={agg.companyExpenseRatio} />
+        <p style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
+          採購佔比 ＝ 巴西採購台幣總額 ÷ 當月總營業額；公司支出佔比 ＝ 公司支出總額 ÷ 當月總營業額。
+          警示標準：0–40% 優良／41–60% 尚可／&gt;60% 欠佳
+        </p>
+      </Card>
+
+      {/* 模組9：發票稅額 */}
+      <Card>
+        <SectionTitle>發票稅額（5%）</SectionTitle>
+        <div style={{ color: C.text, fontSize: 13 }}>應課稅總額合計（含稅營業額＋客人運費）：NT$ {fmt(agg.taxIncludedRevenue)}</div>
+        <div style={{ color: C.text, fontSize: 15, fontWeight: 800, marginTop: 6 }}>本月應納 5% 營業稅額：NT$ {fmt(agg.taxAmount)}</div>
+        <p style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>稅額計算方式：稅額 = 該月所有團之應課稅總額（含稅營業額項目＋客人運費，運費固定視為含稅）× 5%</p>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== 年度比較（模組8） ============================== */
+
+function CompareTab({ teams, expenses, years }) {
+  const now = new Date();
+  const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
+  const [compareYear, setCompareYear] = useState(years[0] || now.getFullYear());
+  const [compareMonth, setCompareMonth] = useState(now.getMonth() + 1);
+
+  const monthsData = Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => ({ month: monthName(mo), monthNum: mo, revenue: monthAggregate(teams, expenses, year, mo).revenueTotal }));
+  const withGrowth = monthsData.map((d, i) => {
+    const prev = i > 0 ? monthsData[i - 1].revenue : null;
+    const growth = prev && prev > 0 ? ((d.revenue - prev) / prev) * 100 : null;
+    return { ...d, growth };
+  });
+
+  const thisMonthAgg = monthAggregate(teams, expenses, year, compareMonth);
+  const otherMonthAgg = monthAggregate(teams, expenses, compareYear, compareMonth);
+  const yoyGrowth = otherMonthAgg.revenueTotal > 0 ? ((thisMonthAgg.revenueTotal - otherMonthAgg.revenueTotal) / otherMonthAgg.revenueTotal) * 100 : null;
+
+  return (
+    <div>
+      <Card style={{ marginBottom: 20 }}>
+        <SectionTitle>{year} 年　1–12 月營運看板</SectionTitle>
+        <div style={{ marginBottom: 12 }}><Select value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y} 年</option>)}</Select></div>
+        <div style={{ width: "100%", height: 260 }}>
+          <ResponsiveContainer>
+            <BarChart data={withGrowth}>
+              <CartesianGrid stroke={`${C.border}`} />
+              <XAxis dataKey="month" tick={{ fill: C.text, fontSize: 12 }} />
+              <YAxis tick={{ fill: C.text, fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: C.cardAlt, border: `1px solid ${C.border}`, color: C.text }} />
+              <Bar dataKey="revenue" name="營業額" fill={C.text} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <Table headers={["月份", "營業額", "與上月成長率"]}>
+          {withGrowth.map((d) => (
+            <tr key={d.monthNum}>
+              <Td>{d.month}</Td><Td>NT$ {fmt(d.revenue)}</Td>
+              <Td>{d.growth === null ? "—" : <span style={{ color: d.growth >= 0 ? C.good : C.bad, display: "inline-flex", alignItems: "center", gap: 4 }}>{d.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{d.growth.toFixed(1)}%</span>}</Td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
+      <Card>
+        <SectionTitle>年度同月比較</SectionTitle>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+          <Field label="本期年份"><Select value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y} 年</option>)}</Select></Field>
+          <Field label="比較年份"><Select value={compareYear} onChange={(e) => setCompareYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y} 年</option>)}</Select></Field>
+          <Field label="比較月份"><Select value={compareMonth} onChange={(e) => setCompareMonth(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => <option key={mo} value={mo}>{monthName(mo)}</option>)}</Select></Field>
+        </div>
+        <Table headers={["", `${year}/${compareMonth}`, `${compareYear}/${compareMonth}`]}>
+          <tr><Td>營業額</Td><Td>NT$ {fmt(thisMonthAgg.revenueTotal)}</Td><Td>NT$ {fmt(otherMonthAgg.revenueTotal)}</Td></tr>
+          <tr><Td>淨利</Td><Td>NT$ {fmt(thisMonthAgg.netProfit)}</Td><Td>NT$ {fmt(otherMonthAgg.netProfit)}</Td></tr>
+        </Table>
+        <div style={{ marginTop: 10, color: C.text }}>年度同月成長率：{yoyGrowth === null ? "—" : <strong style={{ color: yoyGrowth >= 0 ? C.good : C.bad }}>{yoyGrowth.toFixed(1)}%</strong>}</div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== 雲端儲存（GAS）============================== */
+
+const ToastContext = createContext(null);
+
+function ToastProvider({ children }) {
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', message: string }
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3500);
+  };
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      {toast && (
+        <div style={{
+          position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)",
+          zIndex: 9999, padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+          display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 14px rgba(17,24,39,0.18)",
+          background: toast.type === "success" ? "#ECFDF3" : "#FEF2F2",
+          color: toast.type === "success" ? "#15803D" : "#DC2626",
+          border: `1px solid ${toast.type === "success" ? "#86EFAC" : "#FCA5A5"}`,
+        }}>
+          {toast.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}
+          {toast.message}
+        </div>
+      )}
+    </ToastContext.Provider>
+  );
+}
+
+// 儲存至 Google 試算表按鈕。sheetName 對應 GAS 後端要寫入的分頁名稱，getPayload 回傳當下要備份的資料。
+function SaveToCloudButton({ sheetName, getPayload }) {
+  const { showToast } = useContext(ToastContext);
+  const [status, setStatus] = useState("idle"); // idle | saving
+
+  const handleSave = async () => {
+    if (status === "saving") return;
+    setStatus("saving");
+    try {
+      const res = await fetch(GAS_WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ sheet: sheetName, data: getPayload() }),
+      });
+      if (!res.ok) throw new Error("network response not ok");
+      showToast("success", "資料已成功備份至 Google 試算表！");
+    } catch (e) {
+      showToast("error", "儲存失敗，請檢查網路連線");
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
+      <button
+        onClick={handleSave}
+        disabled={status === "saving"}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 24px",
+          borderRadius: 10, border: "none", cursor: status === "saving" ? "not-allowed" : "pointer",
+          background: C.text, color: "#FFFFFF", fontWeight: 700, fontSize: 14,
+          opacity: status === "saving" ? 0.7 : 1, minWidth: 220, justifyContent: "center",
+        }}
+      >
+        {status === "saving" ? (<><Loader2 size={16} className="animate-spin" /> 儲存同步中...</>) : (<><Save size={16} /> 儲存至 Google 試算表</>)}
+      </button>
+    </div>
+  );
+}
+
+/* ============================== 導覽列 ============================== */
+
+const TABS = [
+  { key: "overview", label: "總覽", emoji: "📊" },
+  { key: "teams", label: "團記錄", emoji: "📝" },
+  { key: "brazil", label: "巴西進貨", emoji: "📦" },
+  { key: "staff", label: "人事", emoji: "👥" },
+  { key: "expenses", label: "公司支出", emoji: "💵" },
+  { key: "monthly", label: "月報損益", emoji: "🗓️" },
+  { key: "compare", label: "年度比較", emoji: "📈" },
+];
+
+function Navbar({ tab, setTab }) {
+  return (
+    <nav
+      className="mhx-nav"
+      style={{
+        display: "flex", gap: 2, padding: "0 12px", background: NAV.bg,
+        overflowX: "auto", whiteSpace: "nowrap", scrollbarWidth: "none",
+      }}
+    >
+      {TABS.map((t) => {
+        const active = tab === t.key;
+        return (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className="mhx-nav-btn"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+              padding: "9px 10px 7px 10px", background: "transparent", border: "none", cursor: "pointer",
+              color: active ? NAV.active : NAV.inactive, fontWeight: active ? 700 : 600, fontSize: 13,
+              borderBottom: active ? `3px solid ${NAV.active}` : "3px solid transparent",
+            }}
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>{t.emoji}</span>
+            {t.label}
+          </button>
+        );
+      })}
+      <style>{`
+        .mhx-nav::-webkit-scrollbar { display: none; }
+        .mhx-nav-btn:hover { color: ${NAV.active} !important; border-bottom-color: ${NAV.active}66 !important; }
+      `}</style>
+    </nav>
+  );
+}
+
+/* ============================== 主程式 ============================== */
+
+function App() {
+  const [teams, setTeams] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [tab, setTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await storage.get(STORAGE_KEY);
+        if (res && res.value) {
+          const data = JSON.parse(res.value);
+          setTeams(data.teams || []);
+          setExpenses(data.companyExpenses || []);
+        }
+      } catch (e) {
+        // 尚無資料
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    (async () => {
+      try {
+        const result = await storage.set(STORAGE_KEY, JSON.stringify({ teams, companyExpenses: expenses }));
+        setSaveError(!result);
+      } catch (e) {
+        setSaveError(true);
+      }
+    })();
+  }, [teams, expenses, loading]);
+
+  const years = useMemo(() => {
+    const now = new Date().getFullYear();
+    const set = new Set([now]);
+    teams.forEach((t) => set.add(t.year));
+    expenses.forEach((e) => set.add(e.year));
+    return [...set].sort((a, b) => a - b);
+  }, [teams, expenses]);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 className="animate-spin" color={C.text} size={28} />
+      </div>
+    );
+  }
+
+  return (
+    <ToastProvider>
+      <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans TC', 'PingFang TC', system-ui, sans-serif" }}>
+        <header style={{ padding: "16px 24px", background: NAV.bg }}>
+          <h1 style={{ color: C.text, fontSize: 20, fontWeight: 900, margin: 0 }}>銘海鑫商行｜公司管理系統</h1>
+          <p style={{ color: C.muted, fontSize: 12, margin: "4px 0 0 0" }}>
+            {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端儲存"}
+          </p>
+        </header>
+
+        <Navbar tab={tab} setTab={setTab} />
+
+        <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+          {tab === "overview" && <OverviewDashboard teams={teams} expenses={expenses} years={years} onGoToTeams={() => setTab("teams")} />}
+          {tab === "teams" && <TeamsTab teams={teams} setTeams={setTeams} years={years} />}
+          {tab === "brazil" && <BrazilTab teams={teams} setTeams={setTeams} years={years} />}
+          {tab === "staff" && <StaffTab teams={teams} setTeams={setTeams} years={years} />}
+          {tab === "expenses" && <ExpensesTab expenses={expenses} setExpenses={setExpenses} years={years} />}
+          {tab === "monthly" && <MonthlyTab teams={teams} expenses={expenses} years={years} />}
+          {tab === "compare" && <CompareTab teams={teams} expenses={expenses} years={years} />}
+        </main>
+      </div>
+    </ToastProvider>
+  );
+}
+
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+} catch (err) {
+  mhxShowError(String(err && err.message ? err.message : err));
+}
+
+</script>
+</body>
+</html>
