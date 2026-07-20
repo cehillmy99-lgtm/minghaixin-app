@@ -18,16 +18,18 @@
     <!-- Toast 提示訊息 -->
     <div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-md text-sm font-medium transition-all"></div>
 
-    <!-- 分頁導覽按鈕 -->
-    <nav class="flex border-b text-sm font-medium bg-gray-50">
-      <button onclick="switchTab('overview')" id="tab-overview" class="flex-1 py-3 text-center border-b-2 border-blue-600 font-bold text-blue-600">📊 總覽</button>
-      <button onclick="switchTab('brImport')" id="tab-brImport" class="flex-1 py-3 text-center border-b-2 border-transparent text-gray-500">📦 巴西進貨</button>
+    <!-- 可橫滑分頁導覽按鈕 -->
+    <nav class="flex border-b text-sm font-medium bg-gray-50 overflow-x-auto whitespace-nowrap scrollbar-none">
+      <button onclick="switchTab('overview')" id="tab-overview" class="px-4 py-3 border-b-2 border-blue-600 font-bold text-blue-600">📊 總覽</button>
+      <button onclick="switchTab('group')" id="tab-group" class="px-4 py-3 border-b-2 border-transparent text-gray-500">📝 團記錄</button>
+      <button onclick="switchTab('brImport')" id="tab-brImport" class="px-4 py-3 border-b-2 border-transparent text-gray-500">📦 巴西進貨</button>
+      <button onclick="switchTab('hr')" id="tab-hr" class="px-4 py-3 border-b-2 border-transparent text-gray-500">👥 人事</button>
     </nav>
 
     <!-- 主要內容區 -->
     <main class="p-4 space-y-4">
 
-      <!-- 📊 總覽分頁 (2x2 卡片宮格) -->
+      <!-- 📊 總覽分頁 -->
       <div id="page-overview" class="space-y-4">
         <h2 class="text-sm font-bold text-gray-600">月營運數據</h2>
         <div class="grid grid-cols-2 gap-3">
@@ -54,9 +56,22 @@
         </div>
       </div>
 
+      <!-- 📝 團記錄分頁 -->
+      <div id="page-group" class="space-y-4 hidden">
+        <div class="border rounded-xl p-4 bg-white shadow-sm space-y-3">
+          <h3 class="font-bold text-sm text-gray-700">當團營收紀錄</h3>
+          <div class="space-y-2">
+            <input type="text" placeholder="團名稱 / 備註" class="w-full border rounded px-3 py-1.5 text-sm" />
+            <input type="number" placeholder="當團營收金額 (NT$)" class="w-full border rounded px-3 py-1.5 text-sm" />
+          </div>
+        </div>
+        <button id="save-btn-group" onclick="saveToCloud('團記錄')" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow active:scale-95 transition-all">
+          💾 儲存至 Google 試算表
+        </button>
+      </div>
+
       <!-- 📦 巴西進貨分頁 -->
       <div id="page-brImport" class="space-y-6 hidden">
-        <!-- 巴幣儲值 2x2 欄位 -->
         <div class="border rounded-xl p-4 bg-white shadow-sm space-y-3">
           <h3 class="font-bold text-sm text-gray-700">巴幣儲值</h3>
           <div class="space-y-2">
@@ -67,9 +82,21 @@
             </div>
           </div>
         </div>
+        <button id="save-btn-br" onclick="saveToCloud('巴西進貨')" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow active:scale-95 transition-all">
+          💾 儲存至 Google 試算表
+        </button>
+      </div>
 
-        <!-- 💾 儲存至雲端按鈕 -->
-        <button id="save-btn" onclick="saveToCloud('巴西進貨')" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow active:scale-95 transition-all">
+      <!-- 👥 人事分頁 -->
+      <div id="page-hr" class="space-y-4 hidden">
+        <div class="border rounded-xl p-4 bg-white shadow-sm space-y-3">
+          <h3 class="font-bold text-sm text-gray-700">人事支出紀錄</h3>
+          <div class="space-y-2">
+            <input type="text" placeholder="人員姓名" class="w-full border rounded px-3 py-1.5 text-sm" />
+            <input type="number" placeholder="發放金額 (NT$)" class="w-full border rounded px-3 py-1.5 text-sm" />
+          </div>
+        </div>
+        <button id="save-btn-hr" onclick="saveToCloud('人事')" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow active:scale-95 transition-all">
           💾 儲存至 Google 試算表
         </button>
       </div>
@@ -79,17 +106,18 @@
 
   <script>
     // ⚠️ 請把引號內的內容替換成你在 GAS 按「部署」拿到的網址（雙引號要保留）
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec";
+    const GAS_WEB_APP_URL = "YOUR_GAS_WEB_APP_URL_HERE";
 
     // 切換頁籤
     function switchTab(tabName) {
-      document.getElementById('page-overview').classList.add('hidden');
-      document.getElementById('page-brImport').classList.add('hidden');
-      document.getElementById('tab-overview').className = "flex-1 py-3 text-center border-b-2 border-transparent text-gray-500";
-      document.getElementById('tab-brImport').className = "flex-1 py-3 text-center border-b-2 border-transparent text-gray-500";
+      const tabs = ['overview', 'group', 'brImport', 'hr'];
+      tabs.forEach(t => {
+        document.getElementById('page-' + t).classList.add('hidden');
+        document.getElementById('tab-' + t).className = "px-4 py-3 border-b-2 border-transparent text-gray-500";
+      });
 
       document.getElementById('page-' + tabName).classList.remove('hidden');
-      document.getElementById('tab-' + tabName).className = "flex-1 py-3 text-center border-b-2 border-blue-600 font-bold text-blue-600";
+      document.getElementById('tab-' + tabName).className = "px-4 py-3 border-b-2 border-blue-600 font-bold text-blue-600";
     }
 
     // 顯示提示磚
@@ -103,28 +131,23 @@
 
     // 送出資料至 GAS
     async function saveToCloud(sheetName) {
-      const btn = document.getElementById('save-btn');
-      if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("YOUR_GAS_WEB_APP_URL")) {
+      if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec")) {
         showToast("❌ 請先貼上正確的 GAS 部署網址！", false);
         return;
       }
 
-      btn.innerText = "⏳ 儲存同步中...";
-      btn.disabled = true;
+      showToast("⏳ 儲存同步中...", true);
 
       try {
         await fetch(GAS_WEB_APP_URL, {
           method: 'POST',
-          mode: 'no-cors', // 避開跨網域限制
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sheet: sheetName, timestamp: new Date().toLocaleString() })
         });
         showToast("✅ 資料已成功備份至 Google 試算表！", true);
       } catch (error) {
         showToast("❌ 儲存失敗，請檢查網路", false);
-      } finally {
-        btn.innerText = "💾 儲存至 Google 試算表";
-        btn.disabled = false;
       }
     }
   </script>
