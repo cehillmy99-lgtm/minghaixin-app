@@ -30,7 +30,7 @@
   }
 </style>
 
-<!-- 錯誤偵測攔截器 -->
+<!-- 錯誤偵測攔截器：若不幸出錯會直接顯示在畫面上方，方便對照 -->
 <script>
   function mhxShowError(msg) {
     var box = document.getElementById('mhx-error-box');
@@ -41,7 +41,7 @@
       (document.body || document.documentElement).appendChild(box);
     }
     box.style.display = 'block';
-    box.textContent = "⚠ 發生錯誤，請截圖這段文字給我：\n\n" + msg;
+    box.textContent = "⚠ 發生錯誤：\n\n" + msg;
   }
   window.onerror = function (message, source, lineno, colno, error) {
     mhxShowError(message + "\n\n出錯檔案: " + source + "\n(line " + lineno + ", col " + colno + ")");
@@ -56,15 +56,14 @@
 
 <!-- 使用高相容性的 React 與 Babel CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js" crossorigin></script>
 </head>
 <body>
 <div id="root"></div>
-<div id="mhx-error-box" style="display:none; position:fixed; top:0; left:0; right:0; background:#FEE2E2; color:#991B1B; padding:16px; font-size:13px; font-family:monospace; white-space:pre-wrap; z-index:99999; max-height:80vh; overflow:auto; border-bottom:3px solid #DC2626;"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useMemo, useContext, createContext } = React;
+const { useState, useEffect, useMemo } = React;
 
 /* ============================== Supabase 設定與初始化 ============================== */
 const SUPABASE_URL = "https://zpbrdxdqmnrtyevoewjl.supabase.co";
@@ -89,9 +88,6 @@ const ChevronDown = makeIcon("▾");
 const ChevronRight = makeIcon("▸");
 const TrendingUp = makeIcon("▲");
 const TrendingDown = makeIcon("▼");
-const RefreshCw = makeIcon("🔄");
-const CheckCircle = makeIcon("✅");
-const XCircle = makeIcon("❌");
 
 function Loader2(props) {
   var size = props.size || 16;
@@ -107,7 +103,6 @@ const C = {
   text: "#111827",
   bg: "#F4F5F7",
   card: "#FFFFFF",
-  cardAlt: "#F4F5F7",
   border: "#E5E7EB",
   muted: "#6B7280",
   good: "#16803C",
@@ -133,6 +128,7 @@ const storage = {
     return { value: value };
   },
 };
+
 const PURCHASE_ITEMS = ["Havaianas", "Ipanema", "Melissa", "其它"];
 const VENDORS = ["Site", "Nova Presto", "Marcelle", "Higienopolis", "Vou de Chinelo", "Oscar Freire", "Rei de Chinelus", "Havam Store", "Chinelos Moda", "其它"];
 const EXPENSE_ITEMS = ["國際運費", "稅金", "會計師", "其它"];
@@ -197,12 +193,8 @@ function monthAggregate(teams, companyExpenses, year, month) {
   const taxAmount = taxIncludedRevenue * 0.05;
   const purchaseRatio = revenueTotal > 0 ? purchasesTWD / revenueTotal : 0;
   const companyExpenseRatio = revenueTotal > 0 ? companyExpenseTotal / revenueTotal : 0;
-  const combinedRatio = purchaseRatio + companyExpenseRatio;
-  let status = "優良";
-  if (combinedRatio > 0.8) status = "欠佳";
-  else if (combinedRatio > 0.6) status = "尚可";
 
-  return { monthTeams: monthTeams, monthExpenses: monthExpenses, revenueTotal: revenueTotal, taxIncludedRevenue: taxIncludedRevenue, purchasesTWD: purchasesTWD, helperNetTotal: helperNetTotal, companyExpenseTotal: companyExpenseTotal, totalExpense: totalExpense, netProfit: netProfit, taxAmount: taxAmount, purchaseRatio: purchaseRatio, companyExpenseRatio: companyExpenseRatio, status: status };
+  return { monthTeams: monthTeams, monthExpenses: monthExpenses, revenueTotal: revenueTotal, taxIncludedRevenue: taxIncludedRevenue, purchasesTWD: purchasesTWD, helperNetTotal: helperNetTotal, companyExpenseTotal: companyExpenseTotal, totalExpense: totalExpense, netProfit: netProfit, taxAmount: taxAmount, purchaseRatio: purchaseRatio, companyExpenseRatio: companyExpenseRatio };
 }
 
 /* ============================== 共用 UI 元件 ============================== */
@@ -276,12 +268,7 @@ function YearMonthPicker({ year, month, onYear, onMonth, years }) {
 
 function TeamSelector({ teams, year, month, selectedId, onSelect, onCreate }) {
   const monthTeams = teams.filter(function(t) { return t.year === year && t.month === month; });
-  useEffect(function() {
-    if (monthTeams.length && !monthTeams.find(function(t) { return t.id === selectedId; })) {
-      onSelect(monthTeams[0].id);
-    }
-  }, [year, month, teams.length]);
-
+  
   if (monthTeams.length === 0) {
     return (
       <Card style={{ marginBottom: 16 }}>
@@ -331,7 +318,6 @@ function OverviewDashboard({ teams, expenses, years, onGoToTeams }) {
         <Card style={{ padding: 14 }}>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>預估當月營業稅（5%）</div>
           <div style={{ fontSize: 19, fontWeight: 800, color: C.text }}>NT$ {fmt(Math.round(agg.taxAmount))}</div>
-          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>（含稅營收＋運費之5%）</div>
         </Card>
       </div>
       <Card>
@@ -402,9 +388,7 @@ function TeamRevenueCard({ team, onChange, onDelete }) {
       </div>
       {open && (
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Field label="團名/備註"><Input value={team.name} onChange={function(e) { update({ name: e.target.value }); }} placeholder="例：7月第1團" /></Field>
-          </div>
+          <Field label="團名/備註"><Input value={team.name} onChange={function(e) { update({ name: e.target.value }); }} placeholder="例：7月第1團" /></Field>
           <Table headers={["金額", "含稅？", ""]}>
             {team.revenueEntries.map(function(r) {
               return (
@@ -435,7 +419,9 @@ function BrazilTab({ teams, setTeams, years }) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedId, setSelectedId] = useState(null);
 
-  const team = teams.find(function(t) { return t.id === selectedId; });
+  const monthTeams = teams.filter(function(t) { return t.year === year && t.month === month; });
+  const team = teams.find(function(t) { return t.id === selectedId; }) || monthTeams[0];
+  
   const updateTeam = function(patch) { setTeams(teams.map(function(t) { return t.id === team.id ? Object.assign({}, t, patch) : t; })); };
   const createTeam = function() {
     const nt = emptyTeam(year, month);
@@ -460,87 +446,65 @@ function BrazilTab({ teams, setTeams, years }) {
   const updRemit = function(id, patch) { updateTeam({ remittances: team.remittances.map(function(r) { return r.id === id ? Object.assign({}, r, patch) : r; }) }); };
   const delRemit = function(id) { updateTeam({ remittances: team.remittances.filter(function(r) { return r.id !== id; }) }); };
 
-  const cardStyle = { marginBottom: 10, padding: 12 };
-  const titleStyle = { fontSize: 14, marginBottom: 8 };
-
   return (
     <div>
       <div style={{ marginBottom: 10 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
       <div style={{ marginBottom: 10 }}>
-        <TeamSelector teams={teams} year={year} month={month} selectedId={selectedId} onSelect={setSelectedId} onCreate={createTeam} />
+        <TeamSelector teams={teams} year={year} month={month} selectedId={team.id} onSelect={setSelectedId} onCreate={createTeam} />
       </div>
 
-      <Card style={cardStyle}>
-        <SectionTitle><span style={titleStyle}>巴幣儲值</span></SectionTitle>
+      <Card style={{ marginBottom: 10, padding: 12 }}>
+        <SectionTitle>巴幣儲值</SectionTitle>
         {team.remittances.map(function(r) {
           return (
             <div key={r.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: 8, marginBottom: 8 }}>
               <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-                <Input type="date" value={r.date} onChange={function(e) { updRemit(r.id, { date: e.target.value }); }} style={{ fontSize: 12, padding: "5px 6px", flex: 1, minWidth: 0 }} />
+                <Input type="date" value={r.date} onChange={function(e) { updRemit(r.id, { date: e.target.value }); }} style={{ fontSize: 12, padding: "5px 6px", flex: 1 }} />
                 <Btn variant="ghost" size="sm" onClick={function() { delRemit(r.id); }}><Trash2 size={14} /></Btn>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <Input type="number" value={r.brlOut} onChange={function(e) { updRemit(r.id, { brlOut: e.target.value }); }} placeholder="巴幣金額" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
-                <Input type="number" step="0.01" value={r.rate} onChange={function(e) { updRemit(r.id, { rate: e.target.value }); }} placeholder="當團匯率" style={{ fontSize: 12, padding: "5px 6px", maxWidth: 90, minWidth: 0 }} />
+                <Input type="number" value={r.brlOut} onChange={function(e) { updRemit(r.id, { brlOut: e.target.value }); }} placeholder="巴幣金額" style={{ fontSize: 12, padding: "5px 6px", width: "50%" }} />
+                <Input type="number" step="0.01" value={r.rate} onChange={function(e) { updRemit(r.id, { rate: e.target.value }); }} placeholder="當團匯率" style={{ fontSize: 12, padding: "5px 6px", width: "50%" }} />
               </div>
             </div>
           );
         })}
         <Btn variant="outline" size="sm" onClick={addRemit}><Plus size={14} /> 新增儲值</Btn>
-        <div style={{ marginTop: 8, fontSize: 13, color: C.text, display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <span>當前巴幣餘額：<strong>R$ {fmt(m.currentBalanceBRL)}</strong></span>
-          <span>折合台幣：<strong>NT$ {fmt(m.currentBalanceTWD)}</strong></span>
+        <div style={{ marginTop: 8, fontSize: 13, color: C.text }}>
+          當前巴幣餘額：<strong>R$ {fmt(m.currentBalanceBRL)}</strong>（折合 NT$ {fmt(m.currentBalanceTWD)}）
         </div>
       </Card>
 
-      <Card style={cardStyle}>
-        <SectionTitle><span style={titleStyle}>採購紀錄</span></SectionTitle>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
-            <thead>
-              <tr>
-                {["品項", "廠商", "數量", "巴幣金額", ""].map(function(h, i) {
-                  return <th key={i} style={{ textAlign: "left", padding: "4px 6px", borderBottom: `2px solid ${C.border}`, color: C.text, whiteSpace: "nowrap" }}>{h}</th>;
-                })}
+      <Card style={{ marginBottom: 10, padding: 12 }}>
+        <SectionTitle>採購紀錄</SectionTitle>
+        <Table headers={["品項", "廠商", "數量", "巴幣", ""]}>
+          {team.purchases.map(function(p) {
+            return (
+              <tr key={p.id}>
+                <Td>
+                  <Select value={p.item} onChange={function(e) { updPurchase(p.id, { item: e.target.value }); }} style={{ fontSize: 12, padding: "4px" }}>
+                    {PURCHASE_ITEMS.map(function(it) { return <option key={it} value={it}>{it}</option>; })}
+                  </Select>
+                </Td>
+                <Td>
+                  <Select value={p.vendor} onChange={function(e) { updPurchase(p.id, { vendor: e.target.value }); }} style={{ fontSize: 12, padding: "4px", marginBottom: 4 }}>
+                    {VENDORS.map(function(v) { return <option key={v} value={v}>{v}</option>; })}
+                  </Select>
+                  {p.vendor === "其它" && (
+                    <Input value={p.customVendor} onChange={function(e) { updPurchase(p.id, { customVendor: e.target.value }); }} placeholder="自填廠商" style={{ fontSize: 12, padding: "4px" }} />
+                  )}
+                </Td>
+                <Td><Input type="number" value={p.qty} onChange={function(e) { updPurchase(p.id, { qty: e.target.value }); }} placeholder="0" style={{ fontSize: 12, padding: "4px", width: 50 }} /></Td>
+                <Td><Input type="number" value={p.brl} onChange={function(e) { updPurchase(p.id, { brl: e.target.value }); }} placeholder="0" style={{ fontSize: 12, padding: "4px", width: 70 }} /></Td>
+                <Td><Btn variant="ghost" size="sm" onClick={function() { delPurchase(p.id); }}><Trash2 size={14} /></Btn></Td>
               </tr>
-            </thead>
-            <tbody>
-              {team.purchases.map(function(p) {
-                return (
-                  <tr key={p.id}>
-                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                      <Select value={p.item} onChange={function(e) { updPurchase(p.id, { item: e.target.value }); }} style={{ fontSize: 12, padding: "5px 4px", width: 100 }}>
-                        {PURCHASE_ITEMS.map(function(it) { return <option key={it} value={it}>{it}</option>; })}
-                      </Select>
-                    </td>
-                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                      <Select value={p.vendor} onChange={function(e) { updPurchase(p.id, { vendor: e.target.value }); }} style={{ fontSize: 12, padding: "5px 4px", width: 120 }}>
-                        {VENDORS.map(function(v) { return <option key={v} value={v}>{v}</option>; })}
-                      </Select>
-                      {p.vendor === "其它" && (
-                        <Input value={p.customVendor} onChange={function(e) { updPurchase(p.id, { customVendor: e.target.value }); }} placeholder="自填廠商" style={{ fontSize: 12, padding: "5px 4px", marginTop: 4, width: 120 }} />
-                      )}
-                    </td>
-                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                      <Input type="number" value={p.qty} onChange={function(e) { updPurchase(p.id, { qty: e.target.value }); }} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 55 }} />
-                    </td>
-                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                      <Input type="number" value={p.brl} onChange={function(e) { updPurchase(p.id, { brl: e.target.value }); }} placeholder="0" style={{ fontSize: 12, padding: "5px 4px", width: 80 }} />
-                    </td>
-                    <td style={{ padding: "4px 6px", borderBottom: `1px solid ${C.border}` }}>
-                      <Btn variant="ghost" size="sm" onClick={function() { delPurchase(p.id); }}><Trash2 size={14} /></Btn>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+            );
+          })}
+        </Table>
         <div style={{ marginTop: 8 }}><Btn variant="outline" size="sm" onClick={addPurchase}><Plus size={14} /> 新增採購項目</Btn></div>
         <div style={{ marginTop: 8, fontSize: 13, color: C.text }}>
-          拖鞋總數量：<strong>{fmt(m.slipperQty)}</strong>　採購巴幣總額：<strong>R$ {fmt(m.purchasesBRL)}</strong>　換算台幣：<strong>NT$ {fmt(m.purchasesTWD)}</strong>
+          拖鞋總數：<strong>{fmt(m.slipperQty)}</strong>　採購巴幣：<strong>R$ {fmt(m.purchasesBRL)}</strong>　換算台幣：<strong>NT$ {fmt(m.purchasesTWD)}</strong>
         </div>
-        <div style={{ marginTop: 4, fontSize: 11, color: C.muted }}>換算採用巴幣儲值加權平均匯率：{fmt(m.avgRate)}</div>
       </Card>
     </div>
   );
@@ -554,7 +518,9 @@ function StaffTab({ teams, setTeams, years }) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedId, setSelectedId] = useState(null);
 
-  const team = teams.find(function(t) { return t.id === selectedId; });
+  const monthTeams = teams.filter(function(t) { return t.year === year && t.month === month; });
+  const team = teams.find(function(t) { return t.id === selectedId; }) || monthTeams[0];
+  
   const updateTeam = function(patch) { setTeams(teams.map(function(t) { return t.id === team.id ? Object.assign({}, t, patch) : t; })); };
   const createTeam = function() {
     const nt = emptyTeam(year, month);
@@ -579,7 +545,7 @@ function StaffTab({ teams, setTeams, years }) {
   return (
     <div>
       <div style={{ marginBottom: 16 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
-      <TeamSelector teams={teams} year={year} month={month} selectedId={selectedId} onSelect={setSelectedId} onCreate={createTeam} />
+      <TeamSelector teams={teams} year={year} month={month} selectedId={team.id} onSelect={setSelectedId} onCreate={createTeam} />
 
       <Card>
         <SectionTitle>小幫手人事支出</SectionTitle>
@@ -590,8 +556,8 @@ function StaffTab({ teams, setTeams, years }) {
             {team.helperDeductions.map(function(d) {
               return (
                 <tr key={d.id}>
-                  <Td><Input value={d.name} onChange={function(e) { updDeduction(d.id, { name: e.target.value }); }} placeholder="品名" style={{ width: 160 }} /></Td>
-                  <Td><Input type="number" value={d.amount} onChange={function(e) { updDeduction(d.id, { amount: e.target.value }); }} style={{ width: 110 }} /></Td>
+                  <Td><Input value={d.name} onChange={function(e) { updDeduction(d.id, { name: e.target.value }); }} placeholder="品名" style={{ width: 140 }} /></Td>
+                  <Td><Input type="number" value={d.amount} onChange={function(e) { updDeduction(d.id, { amount: e.target.value }); }} style={{ width: 100 }} /></Td>
                   <Td><Btn variant="ghost" size="sm" onClick={function() { delDeduction(d.id); }}><Trash2 size={14} /></Btn></Td>
                 </tr>
               );
@@ -599,7 +565,7 @@ function StaffTab({ teams, setTeams, years }) {
           </Table>
           <div style={{ marginTop: 8 }}><Btn variant="outline" size="sm" onClick={addDeduction}><Plus size={14} /> 新增代購扣抵</Btn></div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>代購扣抵合計：NT$ {fmt(m.deductionsTotal)}　剩餘應付薪資：<strong>NT$ {fmt(m.helperNet)}</strong></div>
+        <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>剩餘應付薪資：<strong>NT$ {fmt(m.helperNet)}</strong></div>
       </Card>
     </div>
   );
@@ -625,18 +591,22 @@ function ExpensesTab({ expenses, setExpenses, years }) {
         <Btn onClick={add}><Plus size={16} /> 新增支出</Btn>
       </div>
       <Card>
-        <Table headers={["支出項目", "其它名稱", "金額", ""]}>
+        <Table headers={["支出項目", "金額", ""]}>
           {filtered.map(function(e) {
             return (
               <tr key={e.id}>
-                <Td><Select value={e.item} onChange={function(ev) { upd(e.id, { item: ev.target.value }); }}>{EXPENSE_ITEMS.map(function(it) { return <option key={it} value={it}>{it}</option>; })}</Select></Td>
-                <Td>{e.item === "其它" && <Input value={e.customItem} onChange={function(ev) { upd(e.id, { customItem: ev.target.value }); }} placeholder="自填名稱" style={{ width: 140 }} />}</Td>
-                <Td><Input type="number" value={e.amount} onChange={function(ev) { upd(e.id, { amount: ev.target.value }); }} style={{ width: 120 }} /></Td>
+                <Td>
+                  <Select value={e.item} onChange={function(ev) { upd(e.id, { item: ev.target.value }); }} style={{ marginBottom: 4 }}>
+                    {EXPENSE_ITEMS.map(function(it) { return <option key={it} value={it}>{it}</option>; })}
+                  </Select>
+                  {e.item === "其它" && <Input value={e.customItem} onChange={function(ev) { upd(e.id, { customItem: ev.target.value }); }} placeholder="自填名稱" />}
+                </Td>
+                <Td><Input type="number" value={e.amount} onChange={function(ev) { upd(e.id, { amount: ev.target.value }); }} style={{ width: 110 }} /></Td>
                 <Td><Btn variant="ghost" size="sm" onClick={function() { del(e.id); }}><Trash2 size={14} /></Btn></Td>
               </tr>
             );
           })}
-          {filtered.length === 0 && <tr><Td colSpan={4}>本月尚無支出紀錄</Td></tr>}
+          {filtered.length === 0 && <tr><Td colSpan={3}>本月尚無支出紀錄</Td></tr>}
         </Table>
       </Card>
       <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: C.text }}>{year} 年 {month} 月支出合計：NT$ {fmt(total)}</div>
@@ -645,18 +615,6 @@ function ExpensesTab({ expenses, setExpenses, years }) {
 }
 
 /* ============================== 月報損益 ============================== */
-
-function RatioBadge({ ratio }) {
-  const pct = ratio * 100;
-  let status = "優良", color = C.good, symbol = "✓";
-  if (pct > 60) { status = "欠佳"; color = C.bad; symbol = "✗"; }
-  else if (pct > 40) { status = "尚可"; color = C.ok; symbol = "!"; }
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, background: C.bg, border: `1px solid ${C.border}`, color: color, fontWeight: 700, fontSize: 12 }}>
-      {symbol} {status}
-    </span>
-  );
-}
 
 function RatioRow({ label, ratio }) {
   const pct = Math.min(ratio * 100, 100);
@@ -667,24 +625,11 @@ function RatioRow({ label, ratio }) {
     <div style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ color: C.text, fontWeight: 700, fontSize: 14 }}>{label}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <RatioBadge ratio={ratio} />
-          <span style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>{(ratio * 100).toFixed(1)}%</span>
-        </div>
+        <span style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>{(ratio * 100).toFixed(1)}%</span>
       </div>
       <div style={{ width: "100%", height: 8, borderRadius: 999, background: "#EEF0F2" }}>
-        <div style={{ width: pct + "%", height: "100%", borderRadius: 999, background: barColor, transition: "width .3s" }} />
+        <div style={{ width: pct + "%", height: "100%", borderRadius: 999, background: barColor }} />
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, sub, tone }) {
-  return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
-      <div style={{ fontSize: 13, color: C.muted, fontWeight: 600, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: tone || C.text }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
@@ -695,22 +640,13 @@ function MonthlyTab({ teams, expenses, years }) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const agg = monthAggregate(teams, expenses, year, month);
 
-  const yearMonths = useMemo(function() {
-    const set = new Set();
-    teams.forEach(function(t) { if (t.year === year) set.add(t.month); });
-    return Array.from(set);
-  }, [teams, year]);
-
-  const yearlyTotals = yearMonths.map(function(mo) { return monthAggregate(teams, expenses, year, mo).revenueTotal; });
-  const avgRevenue = yearlyTotals.length ? yearlyTotals.reduce(function(a, b) { return a + b; }, 0) / yearlyTotals.length : 0;
-
   return (
     <div>
       <div style={{ marginBottom: 16 }}><YearMonthPicker year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} /></div>
 
       <div style={{ background: C.text, color: "#FFFFFF", borderRadius: 16, padding: "22px 24px", marginBottom: 20 }}>
         <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6 }}>{year} 年 {month} 月　當月實賺金額（淨利）</div>
-        <div style={{ fontSize: 36, fontWeight: 900, letterSpacing: 0.5 }}>$ {fmt(agg.netProfit)}</div>
+        <div style={{ fontSize: 36, fontWeight: 900 }}>$ {fmt(agg.netProfit)}</div>
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.25)" }}>
           <div><div style={{ fontSize: 12, opacity: 0.75 }}>當月總團數</div><div style={{ fontSize: 16, fontWeight: 700 }}>{agg.monthTeams.length} 團</div></div>
           <div><div style={{ fontSize: 12, opacity: 0.75 }}>月累積總營收</div><div style={{ fontSize: 16, fontWeight: 700 }}>$ {fmt(agg.revenueTotal)}</div></div>
@@ -718,28 +654,16 @@ function MonthlyTab({ teams, expenses, years }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 20 }}>
-        <StatCard label="月營業額" value={"$ " + fmt(agg.revenueTotal)} sub="含客人總運費" />
-        <StatCard label="月支出合計" value={"$ " + fmt(agg.totalExpense)} sub="貨款＋人事＋公司支出" tone={C.bad} />
-        <StatCard label="當月實賺金額" value={(agg.netProfit >= 0 ? "+" : "") + fmt(agg.netProfit)} sub="🎉 本月盈餘" tone={C.good} />
-        <StatCard label="平均每月營業額" value={"$ " + fmt(avgRevenue)} sub={year + " 年已有紀錄月份平均"} />
-      </div>
-
       <Card style={{ marginBottom: 20 }}>
         <SectionTitle>成本佔比分析</SectionTitle>
         <RatioRow label="採購佔比" ratio={agg.purchaseRatio} />
         <RatioRow label="公司支出佔比" ratio={agg.companyExpenseRatio} />
-        <p style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
-          採購佔比 ＝ 巴西採購台幣總額 ÷ 當月總營業額；公司支出佔比 ＝ 公司支出總額 ÷ 當月總營業額。
-          警示標準：0–40% 優良／41–60% 尚可／&gt;60% 欠佳
-        </p>
       </Card>
 
       <Card>
         <SectionTitle>發票稅額（5%）</SectionTitle>
-        <div style={{ color: C.text, fontSize: 13 }}>應課稅總額合計（含稅營業額＋客人運費）：NT$ {fmt(agg.taxIncludedRevenue)}</div>
-        <div style={{ color: C.text, fontSize: 15, fontWeight: 800, marginTop: 6 }}>本月應納 5% 營業稅額：NT$ {fmt(agg.taxAmount)}</div>
-        <p style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>稅額計算方式：稅額 = 該月所有團之應課稅總額（含稅營業額項目＋客人運費，運費固定視為含稅）× 5%</p>
+        <div style={{ color: C.text, fontSize: 13 }}>應課稅總額合計：NT$ {fmt(agg.taxIncludedRevenue)}</div>
+        <div style={{ color: C.text, fontSize: 15, fontWeight: 800, marginTop: 6 }}>本月應納 5% 營業稅額：NT$ {fmt(Math.round(agg.taxAmount))}</div>
       </Card>
     </div>
   );
@@ -750,22 +674,10 @@ function MonthlyTab({ teams, expenses, years }) {
 function CompareTab({ teams, expenses, years }) {
   const now = new Date();
   const [year, setYear] = useState(years[years.length - 1] || now.getFullYear());
-  const [compareYear, setCompareYear] = useState(years[0] || now.getFullYear());
-  const [compareMonth, setCompareMonth] = useState(now.getMonth() + 1);
 
   const monthsData = Array.from({ length: 12 }, function(_, i) { return i + 1; }).map(function(mo) {
     return { month: monthName(mo), monthNum: mo, revenue: monthAggregate(teams, expenses, year, mo).revenueTotal };
   });
-
-  const withGrowth = monthsData.map(function(d, i) {
-    const prev = i > 0 ? monthsData[i - 1].revenue : null;
-    const growth = prev && prev > 0 ? ((d.revenue - prev) / prev) * 100 : null;
-    return Object.assign({}, d, { growth: growth });
-  });
-
-  const thisMonthAgg = monthAggregate(teams, expenses, year, compareMonth);
-  const otherMonthAgg = monthAggregate(teams, expenses, compareYear, compareMonth);
-  const yoyGrowth = otherMonthAgg.revenueTotal > 0 ? ((thisMonthAgg.revenueTotal - otherMonthAgg.revenueTotal) / otherMonthAgg.revenueTotal) * 100 : null;
 
   return (
     <div>
@@ -776,43 +688,11 @@ function CompareTab({ teams, expenses, years }) {
             {years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}
           </Select>
         </div>
-        <div style={{ width: "100%", height: 220, display: "flex", alignItems: "flex-end", gap: 6, borderBottom: `1px solid ${C.border}`, padding: "0 4px" }}>
-          {function() {
-            var max = Math.max.apply(Math, [1].concat(withGrowth.map(function(d) { return d.revenue; })));
-            return withGrowth.map(function(d) {
-              return (
-                <div key={d.monthNum} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                  <div style={{ fontSize: 10, color: C.muted }}>{d.revenue > 0 ? fmt(d.revenue) : ""}</div>
-                  <div style={{ width: "100%", height: Math.max(2, (d.revenue / max) * 170), background: C.text, borderRadius: "3px 3px 0 0" }} />
-                  <div style={{ fontSize: 10, color: C.muted }}>{d.monthNum}月</div>
-                </div>
-              );
-            });
-          }()}
-        </div>
-        <Table headers={["月份", "營業額", "與上月成長率"]}>
-          {withGrowth.map(function(d) {
-            return (
-              <tr key={d.monthNum}>
-                <Td>{d.month}</Td><Td>NT$ {fmt(d.revenue)}</Td>
-                <Td>{d.growth === null ? "—" : <span style={{ color: d.growth >= 0 ? C.good : C.bad, display: "inline-flex", alignItems: "center", gap: 4 }}>{d.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{d.growth.toFixed(1)}%</span>}</Td>
-              </tr>
-            );
+        <Table headers={["月份", "營業額"]}>
+          {monthsData.map(function(d) {
+            return <tr key={d.monthNum}><Td>{d.month}</Td><Td>NT$ {fmt(d.revenue)}</Td></tr>;
           })}
         </Table>
-      </Card>
-      <Card>
-        <SectionTitle>年度同月比較</SectionTitle>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-          <Field label="本期年份"><Select value={year} onChange={function(e) { setYear(Number(e.target.value)); }}>{years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}</Select></Field>
-          <Field label="比較年份"><Select value={compareYear} onChange={function(e) { setCompareYear(Number(e.target.value)); }}>{years.map(function(y) { return <option key={y} value={y}>{y} 年</option>; })}</Select></Field>
-          <Field label="比較月份"><Select value={compareMonth} onChange={function(e) { setCompareMonth(Number(e.target.value)); }}>{Array.from({ length: 12 }, function(_, i) { return i + 1; }).map(function(mo) { return <option key={mo} value={mo}>{monthName(mo)}</option>; })}</Select></Field>
-        </div>
-        <Table headers={["", year + "/" + compareMonth, compareYear + "/" + compareMonth]}>
-          <tr><Td>營業額</Td><Td>NT$ {fmt(thisMonthAgg.revenueTotal)}</Td><Td>NT$ {fmt(otherMonthAgg.revenueTotal)}</Td></tr>
-          <tr><Td>淨利</Td><Td>NT$ {fmt(thisMonthAgg.netProfit)}</Td><Td>NT$ {fmt(otherMonthAgg.netProfit)}</Td></tr>
-        </Table>
-        <div style={{ marginTop: 10, color: C.text }}>年度同月成長率：{yoyGrowth === null ? "—" : <strong style={{ color: yoyGrowth >= 0 ? C.good : C.bad }}>{yoyGrowth.toFixed(1)}%</strong>}</div>
       </Card>
     </div>
   );
@@ -832,20 +712,13 @@ const TABS = [
 
 function Navbar({ tab, setTab }) {
   return (
-    <nav
-      className="mhx-nav"
-      style={{
-        display: "flex", gap: 2, padding: "0 12px", background: NAV.bg,
-        overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch",
-      }}
-    >
+    <nav style={{ display: "flex", gap: 2, padding: "0 12px", background: NAV.bg, overflowX: "auto", whiteSpace: "nowrap" }}>
       {TABS.map(function(t) {
         const active = tab === t.key;
         return (
           <button
             key={t.key}
             onClick={function() { setTab(t.key); }}
-            className="mhx-nav-btn"
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
               padding: "9px 10px 7px 10px", background: "transparent", border: "none", cursor: "pointer",
@@ -853,7 +726,7 @@ function Navbar({ tab, setTab }) {
               borderBottom: active ? `3px solid ${NAV.active}` : "3px solid transparent",
             }}
           >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>{t.emoji}</span>
+            <span>{t.emoji}</span>
             {t.label}
           </button>
         );
@@ -869,29 +742,7 @@ function App() {
   const [expenses, setExpenses] = useState([]);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [saveError, setSaveError] = useState(false);
-
-  // 從 Supabase 雲端讀取資料
-  const loadFromCloud = async function() {
-    setSyncing(true);
-    try {
-      const { data, error } = await supabase
-        .from('app_data')
-        .select('data')
-        .eq('id', 'main')
-        .single();
-
-      if (data && data.data) {
-        setTeams(data.data.teams || []);
-        setExpenses(data.data.companyExpenses || []);
-      }
-    } catch (e) {
-      console.log("Cloud sync note: ", e);
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   useEffect(function() {
     (async function() {
@@ -902,52 +753,47 @@ function App() {
           setTeams(data.teams || []);
           setExpenses(data.companyExpenses || []);
         }
-        await loadFromCloud();
+        
+        // 從 Supabase 讀取雲端資料
+        const { data, error } = await supabase.from('app_data').select('data').eq('id', 'main').single();
+        if (data && data.data) {
+          setTeams(data.data.teams || []);
+          setExpenses(data.data.companyExpenses || []);
+        }
       } catch (e) {
       } finally {
         setLoading(false);
       }
     })();
 
-    // 訂閱 Supabase Realtime 即時推播
+    // 訂閱 Supabase 即時變動
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'app_data', filter: 'id=eq.main' },
-        (payload) => {
-          if (payload.new && payload.new.data) {
-            setTeams(payload.new.data.teams || []);
-            setExpenses(payload.new.data.companyExpenses || []);
-          }
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_data', filter: 'id=eq.main' }, function(payload) {
+        if (payload.new && payload.new.data) {
+          setTeams(payload.new.data.teams || []);
+          setExpenses(payload.new.data.companyExpenses || []);
         }
-      )
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return function() { supabase.removeChannel(channel); };
   }, []);
 
-  // 防抖（Debounce）自動同步到 Supabase
   useEffect(function() {
     if (loading) return;
-    
-    // 同步到本地快照
     storage.set(STORAGE_KEY, JSON.stringify({ teams: teams, companyExpenses: expenses }));
 
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(async function() {
       try {
-        const { error } = await supabase
-          .from('app_data')
-          .upsert({ id: 'main', data: { teams: teams, companyExpenses: expenses }, updated_at: new Date() });
+        const { error } = await supabase.from('app_data').upsert({ id: 'main', data: { teams: teams, companyExpenses: expenses }, updated_at: new Date() });
         setSaveError(!!error);
       } catch (e) {
         setSaveError(true);
       }
     }, 1000);
 
-    return () => clearTimeout(timer);
+    return function() { clearTimeout(timer); };
   }, [teams, expenses, loading]);
 
   const years = useMemo(function() {
@@ -970,23 +816,11 @@ function App() {
     <div style={{ minHeight: "100vh", background: C.bg }}>
       <header className="app-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 800,
-            margin: 0,
-            letterSpacing: "1.2px",
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
-            background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}>
-            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ Operating System</span>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "1.2px", color: C.text }}>
+            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, color: C.muted }}>｜ OS</span>
           </h1>
-          <p style={{ color: saveError ? C.bad : C.good, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px", fontWeight: 600 }}>
-            {saveError ? "⚠ 資料同步失敗，請確認網路" : "● 已與 Supabase 雲端即時同步"}
+          <p style={{ color: saveError ? C.bad : C.good, fontSize: 12, margin: "4px 0 0 0", fontWeight: 600 }}>
+            {saveError ? "⚠ 雲端同步失敗" : "● 已與 Supabase 同步"}
           </p>
         </div>
       </header>
