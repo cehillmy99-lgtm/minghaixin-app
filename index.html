@@ -56,7 +56,7 @@
 
 <!-- 使用高相容性的 React 與 Babel CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js" crossorigin></script>
 </head>
 <body>
@@ -989,18 +989,6 @@ function App() {
             {saveError ? "⚠ 資料同步失敗，請確認網路" : "● 已與 Supabase 雲端即時同步"}
           </p>
         </div>
-        <button
-          onClick={loadFromCloud}
-          disabled={syncing}
-          style={{
-            padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
-            background: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 4, color: C.text
-          }}
-        >
-          {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          重新讀取
-        </button>
       </header>
 
       <Navbar tab={tab} setTab={setTab} />
