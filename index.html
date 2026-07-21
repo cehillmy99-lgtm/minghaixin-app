@@ -60,7 +60,7 @@
 <div id="mhx-error-box" style="display:none; position:fixed; top:0; left:0; right:0; background:#FEE2E2; color:#991B1B; padding:16px; font-size:13px; font-family:monospace; white-space:pre-wrap; z-index:99999; max-height:80vh; overflow:auto; border-bottom:3px solid #DC2626;"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useMemo } = React;
+const { useState, useEffect, useMemo, useRef } = React;
 
 /* ============================== Supabase 初始化 ============================== */
 const SUPABASE_URL = "https://rZpakbq-aty1a0sCPK4wrg_HAtZ-ljq.supabase.co";
@@ -889,27 +889,55 @@ function App() {
   const [expenses, setExpenses] = useState([]);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
-  const [syncStatus, setSyncStatus] = useState("已連線 Supabase 雲端資料庫");
+  const [syncStatus, setSyncStatus] = useState("正在從雲端載入資料...");
 
+  const isRemoteUpdating = useRef(false);
+
+  // 初始化：從 Supabase 讀取雲端資料 + 啟動即時雙向監聽
   useEffect(function() {
     (async function() {
       try {
         const res = await storage.get(STORAGE_KEY);
         if (res && res.value) {
           const data = JSON.parse(res.value);
-          setTeams(data.teams || []);
-          setExpenses(data.companyExpenses || []);
+          if (data.teams) setTeams(data.teams);
+          if (data.companyExpenses) setExpenses(data.companyExpenses);
         }
+        setSyncStatus("已連線 Supabase 雲端資料庫");
       } catch (e) {
+        setSyncStatus("⚠ 載入失敗，使用離線模式");
       } finally {
         setLoading(false);
       }
     })();
+
+    // 建立 Supabase Realtime 即時監聽通道
+    const channel = supabase
+      .channel('public:mhx_system_data')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mhx_system_data', filter: 'id=eq.main_state' },
+        function(payload) {
+          if (payload && payload.new && payload.new.payload) {
+            const remoteData = payload.new.payload;
+            isRemoteUpdating.current = true;
+            if (remoteData.teams) setTeams(remoteData.teams);
+            if (remoteData.companyExpenses) setExpenses(remoteData.companyExpenses);
+            setSyncStatus("已即時同步遠端更新");
+            setTimeout(function() { isRemoteUpdating.current = false; }, 500);
+          }
+        }
+      )
+      .subscribe();
+
+    return function() {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // 自動同步機制（帶防手震 debounce）
+  // 自動同步機制（當本地修改時，自動存入 Supabase）
   useEffect(function() {
-    if (loading) return;
+    if (loading || isRemoteUpdating.current) return;
     setSyncStatus("同步中...");
     const timer = setTimeout(async function() {
       try {
