@@ -127,9 +127,11 @@ const storage = {
         .from('mhx_system_data')
         .select('*')
         .eq('id', 'main_state')
-        .single();
+        .maybeSingle();
       
       if (data && data.payload) {
+        // 同步更新本地 LocalStorage 作為雙重保障
+        localStorage.setItem(key, JSON.stringify(data.payload));
         return { value: JSON.stringify(data.payload) };
       }
     } catch (e) {
@@ -142,9 +144,10 @@ const storage = {
     localStorage.setItem(key, value);
     try {
       const parsed = JSON.parse(value);
-      await supabase
+      const { error } = await supabase
         .from('mhx_system_data')
         .upsert({ id: 'main_state', payload: parsed, updated_at: new Date() });
+      if (error) throw error;
     } catch (e) {
       console.error("Supabase 自動同步失敗", e);
       throw e;
@@ -900,8 +903,8 @@ function App() {
         const res = await storage.get(STORAGE_KEY);
         if (res && res.value) {
           const data = JSON.parse(res.value);
-          if (data.teams) setTeams(data.teams);
-          if (data.companyExpenses) setExpenses(data.companyExpenses);
+          if (data.teams && data.teams.length > 0) setTeams(data.teams);
+          if (data.companyExpenses && data.companyExpenses.length > 0) setExpenses(data.companyExpenses);
         }
         setSyncStatus("已連線 Supabase 雲端資料庫");
       } catch (e) {
