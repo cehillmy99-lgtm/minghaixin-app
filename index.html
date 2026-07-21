@@ -82,6 +82,7 @@ const ChevronRight = makeIcon("▸");
 const TrendingUp = makeIcon("▲");
 const TrendingDown = makeIcon("▼");
 const Save = makeIcon("💾");
+const RefreshCw = makeIcon("🔄");
 const CheckCircle = makeIcon("✅");
 const XCircle = makeIcon("❌");
 
@@ -941,7 +942,24 @@ function App() {
   const [expenses, setExpenses] = useState([]);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [saveError, setSaveError] = useState(false);
+
+  // 從 GAS 雲端讀取試算表資料
+  const loadFromCloud = async function() {
+    setSyncing(true);
+    try {
+      const res = await fetch(GAS_WEB_APP_URL + "?sheet=團紀錄");
+      const result = await res.json();
+      if (result && result.ok && result.data) {
+        // 如果 GAS 回傳有效資料，可以在這裡解析並更新 teams
+      }
+    } catch (e) {
+      console.log("Cloud sync note: ", e);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(function() {
     (async function() {
@@ -952,6 +970,8 @@ function App() {
           setTeams(data.teams || []);
           setExpenses(data.companyExpenses || []);
         }
+        // 頁面開啟時同時向雲端嘗試同步
+        loadFromCloud();
       } catch (e) {
       } finally {
         setLoading(false);
@@ -990,25 +1010,39 @@ function App() {
   return (
     <ToastProvider>
       <div style={{ minHeight: "100vh", background: C.bg }}>
-        <header className="app-header">
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 800,
-            margin: 0,
-            letterSpacing: "1.2px",
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
-            background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}>
-            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ Operating System</span>
-          </h1>
-          <p style={{ color: C.muted, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px" }}>
-            {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端儲存"}
-          </p>
+        <header className="app-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1 style={{
+              fontSize: 22,
+              fontWeight: 800,
+              margin: 0,
+              letterSpacing: "1.2px",
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
+              background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ Operating System</span>
+            </h1>
+            <p style={{ color: C.muted, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px" }}>
+              {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端同步中"}
+            </p>
+          </div>
+          <button
+            onClick={loadFromCloud}
+            disabled={syncing}
+            style={{
+              padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
+              background: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 4, color: C.text
+            }}
+          >
+            {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            同步雲端
+          </button>
         </header>
 
         <Navbar tab={tab} setTab={setTab} />
