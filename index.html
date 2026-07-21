@@ -51,6 +51,9 @@
   });
 </script>
 
+<!-- 載入 Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <!-- 使用高相容性的 React 與 Babel CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
@@ -62,6 +65,11 @@
 
 <script type="text/babel">
 const { useState, useEffect, useMemo, useContext, createContext } = React;
+
+/* ============================== Supabase 設定與初始化 ============================== */
+const SUPABASE_URL = "https://zpbrdxdqmnrtyevoewjl.supabase.co";
+const SUPABASE_ANON_KEY = "Sb_publishable_rZpakbq-aty1a0sCPK4wrg_HAtZ-ljq";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function makeIcon(glyph) {
   return function Icon(props) {
@@ -81,7 +89,6 @@ const ChevronDown = makeIcon("▾");
 const ChevronRight = makeIcon("▸");
 const TrendingUp = makeIcon("▲");
 const TrendingDown = makeIcon("▼");
-const Save = makeIcon("💾");
 const RefreshCw = makeIcon("🔄");
 const CheckCircle = makeIcon("✅");
 const XCircle = makeIcon("❌");
@@ -95,8 +102,6 @@ function Loader2(props) {
 }
 
 /* ============================== 常數與樣式 ============================== */
-
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfwDFijUoGzseTQMhPlI_8yAXlV9GY5KtuH-fgo8-XmLPXzgZ08j12cC1BZZmPxvIu/exec";
 
 const C = {
   text: "#111827",
@@ -371,7 +376,6 @@ function TeamsTab({ teams, setTeams, years }) {
       {filtered.map(function(t) {
         return <TeamRevenueCard key={t.id} team={t} onChange={updateTeam} onDelete={deleteTeam} />;
       })}
-      <SaveToCloudButton sheetName="團紀錄" getPayload={function() { return filtered; }} />
     </div>
   );
 }
@@ -538,7 +542,6 @@ function BrazilTab({ teams, setTeams, years }) {
         </div>
         <div style={{ marginTop: 4, fontSize: 11, color: C.muted }}>換算採用巴幣儲值加權平均匯率：{fmt(m.avgRate)}</div>
       </Card>
-      <SaveToCloudButton sheetName="巴西進貨" getPayload={function() { return { teamId: team.id, teamName: team.name, remittances: team.remittances, purchases: team.purchases }; }} />
     </div>
   );
 }
@@ -598,7 +601,6 @@ function StaffTab({ teams, setTeams, years }) {
         </div>
         <div style={{ marginTop: 10, fontSize: 13, color: C.text }}>代購扣抵合計：NT$ {fmt(m.deductionsTotal)}　剩餘應付薪資：<strong>NT$ {fmt(m.helperNet)}</strong></div>
       </Card>
-      <SaveToCloudButton sheetName="人事" getPayload={function() { return { teamId: team.id, teamName: team.name, helperName: team.helperName, helperDeductions: team.helperDeductions, helperGross: m.helperGross, helperNet: m.helperNet }; }} />
     </div>
   );
 }
@@ -638,7 +640,6 @@ function ExpensesTab({ expenses, setExpenses, years }) {
         </Table>
       </Card>
       <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: C.text }}>{year} 年 {month} 月支出合計：NT$ {fmt(total)}</div>
-      <SaveToCloudButton sheetName="公司支出" getPayload={function() { return filtered; }} />
     </div>
   );
 }
@@ -817,80 +818,6 @@ function CompareTab({ teams, expenses, years }) {
   );
 }
 
-/* ============================== 雲端儲存與 Toast ============================== */
-
-const ToastContext = createContext(null);
-
-function ToastProvider({ children }) {
-  const [toast, setToast] = useState(null);
-  const showToast = function(type, message) {
-    setToast({ type: type, message: message });
-    setTimeout(function() { setToast(null); }, 3500);
-  };
-  return (
-    <ToastContext.Provider value={{ showToast: showToast }}>
-      {children}
-      {toast && (
-        <div style={{
-          position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)",
-          zIndex: 9999, padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-          display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 14px rgba(17,24,39,0.18)",
-          background: toast.type === "success" ? "#ECFDF3" : "#FEF2F2",
-          color: toast.type === "success" ? "#15803D" : "#DC2626",
-          border: `1px solid ${toast.type === "success" ? "#86EFAC" : "#FCA5A5"}`,
-        }}>
-          {toast.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}
-          {toast.message}
-        </div>
-      )}
-    </ToastContext.Provider>
-  );
-}
-
-function SaveToCloudButton({ sheetName, getPayload }) {
-  const { showToast } = useContext(ToastContext);
-  const [status, setStatus] = useState("idle");
-
-  const handleSave = async function() {
-    if (status === "saving") return;
-    if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.indexOf("YOUR_GAS_WEB_APP_URL") !== -1) {
-      showToast("error", "請先設定正確的 GAS 部署網址！");
-      return;
-    }
-    setStatus("saving");
-    try {
-      await fetch(GAS_WEB_APP_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheet: sheetName, data: getPayload() }),
-      });
-      showToast("success", "資料已成功備份至 Google 試算表！");
-    } catch (e) {
-      showToast("error", "儲存失敗，請檢查網路連線");
-    } finally {
-      setStatus("idle");
-    }
-  };
-
-  return (
-    <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
-      <button
-        onClick={handleSave}
-        disabled={status === "saving"}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 24px",
-          borderRadius: 10, border: "none", cursor: status === "saving" ? "not-allowed" : "pointer",
-          background: C.text, color: "#FFFFFF", fontWeight: 700, fontSize: 14,
-          opacity: status === "saving" ? 0.7 : 1, minWidth: 220, justifyContent: "center",
-        }}
-      >
-        {status === "saving" ? (<><Loader2 size={16} className="animate-spin" /> 儲存同步中...</>) : (<><Save size={16} /> 儲存至 Google 試算表</>)}
-      </button>
-    </div>
-  );
-}
-
 /* ============================== 導覽列 ============================== */
 
 const TABS = [
@@ -945,14 +872,19 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
-  // 從 GAS 雲端讀取試算表資料
+  // 從 Supabase 雲端讀取資料
   const loadFromCloud = async function() {
     setSyncing(true);
     try {
-      const res = await fetch(GAS_WEB_APP_URL + "?sheet=團紀錄");
-      const result = await res.json();
-      if (result && result.ok && result.data) {
-        // 如果 GAS 回傳有效資料，可以在這裡解析並更新 teams
+      const { data, error } = await supabase
+        .from('app_data')
+        .select('data')
+        .eq('id', 'main')
+        .single();
+
+      if (data && data.data) {
+        setTeams(data.data.teams || []);
+        setExpenses(data.data.companyExpenses || []);
       }
     } catch (e) {
       console.log("Cloud sync note: ", e);
@@ -970,25 +902,52 @@ function App() {
           setTeams(data.teams || []);
           setExpenses(data.companyExpenses || []);
         }
-        // 頁面開啟時同時向雲端嘗試同步
-        loadFromCloud();
+        await loadFromCloud();
       } catch (e) {
       } finally {
         setLoading(false);
       }
     })();
+
+    // 訂閱 Supabase Realtime 即時推播
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'app_data', filter: 'id=eq.main' },
+        (payload) => {
+          if (payload.new && payload.new.data) {
+            setTeams(payload.new.data.teams || []);
+            setExpenses(payload.new.data.companyExpenses || []);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
+  // 防抖（Debounce）自動同步到 Supabase
   useEffect(function() {
     if (loading) return;
-    (async function() {
+    
+    // 同步到本地快照
+    storage.set(STORAGE_KEY, JSON.stringify({ teams: teams, companyExpenses: expenses }));
+
+    const timer = setTimeout(async () => {
       try {
-        const result = await storage.set(STORAGE_KEY, JSON.stringify({ teams: teams, companyExpenses: expenses }));
-        setSaveError(!result);
+        const { error } = await supabase
+          .from('app_data')
+          .upsert({ id: 'main', data: { teams: teams, companyExpenses: expenses }, updated_at: new Date() });
+        setSaveError(!!error);
       } catch (e) {
         setSaveError(true);
       }
-    })();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [teams, expenses, loading]);
 
   const years = useMemo(function() {
@@ -1008,56 +967,54 @@ function App() {
   }
 
   return (
-    <ToastProvider>
-      <div style={{ minHeight: "100vh", background: C.bg }}>
-        <header className="app-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h1 style={{
-              fontSize: 22,
-              fontWeight: 800,
-              margin: 0,
-              letterSpacing: "1.2px",
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
-              background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}>
-              銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ Operating System</span>
-            </h1>
-            <p style={{ color: C.muted, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px" }}>
-              {saveError ? "⚠ 資料儲存失敗，請確認網路連線" : "資料自動雲端同步中"}
-            </p>
-          </div>
-          <button
-            onClick={loadFromCloud}
-            disabled={syncing}
-            style={{
-              padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
-              background: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 4, color: C.text
-            }}
-          >
-            {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            同步雲端
-          </button>
-        </header>
+    <div style={{ minHeight: "100vh", background: C.bg }}>
+      <header className="app-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 800,
+            margin: 0,
+            letterSpacing: "1.2px",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif',
+            background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}>
+            銘海鑫商行 <span style={{ fontSize: 15, fontWeight: 500, opacity: 0.65, WebkitTextFillColor: "#6B7280" }}>｜ Operating System</span>
+          </h1>
+          <p style={{ color: saveError ? C.bad : C.good, fontSize: 12, margin: "6px 0 0 0", letterSpacing: "0.5px", fontWeight: 600 }}>
+            {saveError ? "⚠ 資料同步失敗，請確認網路" : "● 已與 Supabase 雲端即時同步"}
+          </p>
+        </div>
+        <button
+          onClick={loadFromCloud}
+          disabled={syncing}
+          style={{
+            padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
+            background: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 4, color: C.text
+          }}
+        >
+          {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+          重新讀取
+        </button>
+      </header>
 
-        <Navbar tab={tab} setTab={setTab} />
+      <Navbar tab={tab} setTab={setTab} />
 
-        <main style={{ padding: "16px 12px", maxWidth: 1100, margin: "0 auto" }}>
-          {tab === "overview" && <OverviewDashboard teams={teams} expenses={expenses} years={years} onGoToTeams={function() { setTab("teams"); }} />}
-          {tab === "teams" && <TeamsTab teams={teams} setTeams={setTeams} years={years} />}
-          {tab === "brazil" && <BrazilTab teams={teams} setTeams={setTeams} years={years} />}
-          {tab === "staff" && <StaffTab teams={teams} setTeams={setTeams} years={years} />}
-          {tab === "expenses" && <ExpensesTab expenses={expenses} setExpenses={setExpenses} years={years} />}
-          {tab === "monthly" && <MonthlyTab teams={teams} expenses={expenses} years={years} />}
-          {tab === "compare" && <CompareTab teams={teams} expenses={expenses} years={years} />}
-        </main>
-      </div>
-    </ToastProvider>
+      <main style={{ padding: "16px 12px", maxWidth: 1100, margin: "0 auto" }}>
+        {tab === "overview" && <OverviewDashboard teams={teams} expenses={expenses} years={years} onGoToTeams={function() { setTab("teams"); }} />}
+        {tab === "teams" && <TeamsTab teams={teams} setTeams={setTeams} years={years} />}
+        {tab === "brazil" && <BrazilTab teams={teams} setTeams={setTeams} years={years} />}
+        {tab === "staff" && <StaffTab teams={teams} setTeams={setTeams} years={years} />}
+        {tab === "expenses" && <ExpensesTab expenses={expenses} setExpenses={setExpenses} years={years} />}
+        {tab === "monthly" && <MonthlyTab teams={teams} expenses={expenses} years={years} />}
+        {tab === "compare" && <CompareTab teams={teams} expenses={expenses} years={years} />}
+      </main>
+    </div>
   );
 }
 
