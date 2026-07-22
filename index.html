@@ -63,13 +63,14 @@
 const { useState, useEffect, useMemo, useRef } = React;
 
 /* ============================== Supabase 初始化 ============================== */
-const SUPABASE_URL = "https://rZpakbq-aty1a0sCPK4wrg_HAtZ-ljq.supabase.co";
-const SUPABASE_ANON_KEY = "Sb_publishable_rZpakbq-aty1a0sCPK4wrg_HAtZ-ljq";
+const SUPABASE_URL = "https://zpbrdxdqmnrtyevoewjl.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_rZpakbq-aty1a0sCPK4wrg_HAtZ-ljq";
 
 const supabase = window.supabase.createClient(
-  "https://rZpakbq.supabase.co",
+  SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+
 
 function makeIcon(glyph) {
   return function Icon(props) {
